@@ -1,24 +1,20 @@
-import Header from "./components/Header"
-import Footer from "./components/Footer"
-import BookCard from "./components/BookCard"
-import BookForm from "./components/BookForm"
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import Dashboard from "./pages/Dashboard"
+import BookPage from "./pages/BookPage"
+import Login from "./pages/Login"
+import Register from "./pages/Register"
 
 function App() {
-
   return (
-    <>
-      <Header />
-      
-      <div className="mt-6 px-4">
-        <BookForm />
-      </div>
-
-      <div className="pt-4">
-        <BookCard />
-      </div>
-
-      <Footer />
-    </>
+    <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/books" element={<BookPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Routes>
+    </BrowserRouter>
   )
 }
 

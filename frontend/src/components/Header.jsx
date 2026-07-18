@@ -1,9 +1,10 @@
+import ThemeToggle from "./ThemeToggle";
 
-function Header() {
-    return (
-        <header className="w-full bg-blue-500 h-12 flex items-center justify-between px-4 shadow-sm">
-            <div className="text-2xl text-white font-semibold">Book Shelf</div>
-            <button className="bg-white text-blue-600 px-2 py-1 rounded-md text-sm">Add Book</button>
+function Header (){
+    return(
+        <header className="w-full shadow-sm bg-blue-600 h-16 px-6 flex items-center justify-between text-white dark:bg-slate-950 dark:text-white">
+            <a className="text-3xl font-semibold">Book Shelf</a>
+            <ThemeToggle/>
         </header>
     )
 }
