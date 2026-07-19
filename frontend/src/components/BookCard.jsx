@@ -1,4 +1,6 @@
+import { useState } from "react";
 import StarRating from "./StarRating";
+import Button from "./Button";
 
 function statusColor(status) {
   if (status === "want") return "bg-slate-100 text-slate-800";
@@ -8,12 +10,16 @@ function statusColor(status) {
 }
 
 function CoverPlaceholder({ title, coverUrl }) {
-  if (coverUrl) {
+  const [imageError, setImageError] = useState(false);
+  const hasCover = typeof coverUrl === "string" && coverUrl.trim().length > 0;
+
+  if (hasCover && !imageError) {
     return (
       <img
         src={coverUrl}
         alt={`${title} cover`}
         className="h-20 w-16 rounded-2xl object-cover shadow-sm"
+        onError={() => setImageError(true)}
       />
     );
   }
@@ -61,37 +67,23 @@ export default function BookCard({ book, onMove, onDelete, onRate }) {
       <div className="flex flex-wrap gap-2">
         {book.status === "want" && (
           <>
-            <button type="button" onClick={() => onMove(book.id, "reading")} className="rounded bg-amber-400 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-500">
-              Start Reading
-            </button>
-            <button type="button" onClick={() => onMove(book.id, "finished")} className="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-              Mark Finished
-            </button>
+            <Button variant="warning" size="sm" onClick={() => onMove(book.id, "reading")}>Start Reading</Button>
+            <Button variant="success" size="sm" onClick={() => onMove(book.id, "finished")}>Mark Finished</Button>
           </>
         )}
         {book.status === "reading" && (
           <>
-            <button type="button" onClick={() => onMove(book.id, "want")} className="rounded bg-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300">
-              Move to Want
-            </button>
-            <button type="button" onClick={() => onMove(book.id, "finished")} className="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-              Finish Book
-            </button>
+            <Button variant="secondary" size="sm" onClick={() => onMove(book.id, "want")}>Move to Want</Button>
+            <Button variant="success" size="sm" onClick={() => onMove(book.id, "finished")}>Finish Book</Button>
           </>
         )}
         {book.status === "finished" && (
           <>
-            <button type="button" onClick={() => onMove(book.id, "reading")} className="rounded bg-amber-400 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-500">
-              Re-read
-            </button>
-            <button type="button" onClick={() => onMove(book.id, "want")} className="rounded bg-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300">
-              Want Again
-            </button>
+            <Button variant="warning" size="sm" onClick={() => onMove(book.id, "reading")}>Re-read</Button>
+            <Button variant="secondary" size="sm" onClick={() => onMove(book.id, "want")}>Want Again</Button>
           </>
         )}
-        <button type="button" onClick={() => onDelete(book.id)} className="rounded bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600">
-          Delete
-        </button>
+        <Button variant="danger" size="sm" onClick={() => onDelete(book.id)}>Delete</Button>
       </div>
     </article>
   );

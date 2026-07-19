@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { getBookCoverUrl } from "../api";
+import Button from "./Button";
 
 export default function AddBookModal({ onAdd, onClose }) {
   const [title, setTitle] = useState("");
@@ -6,16 +8,38 @@ export default function AddBookModal({ onAdd, onClose }) {
   const [genre, setGenre] = useState("");
   const [status, setStatus] = useState("want");
   const [coverUrl, setCoverUrl] = useState("");
+  const [review, setReview] = useState("");
+  const [isSearchingCover, setIsSearchingCover] = useState(false);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     if (!title.trim() || !author.trim()) return;
-    onAdd({ title: title.trim(), author: author.trim(), genre: genre.trim(), status, coverUrl: coverUrl.trim() });
-    setTitle("");
-    setAuthor("");
-    setGenre("");
-    setStatus("want");
-    setCoverUrl("");
+
+    const trimmedTitle = title.trim();
+    const trimmedAuthor = author.trim();
+    const trimmedCoverUrl = coverUrl.trim();
+
+    setIsSearchingCover(true);
+    try {
+      const resolvedCoverUrl = trimmedCoverUrl || (await getBookCoverUrl(trimmedTitle, trimmedAuthor));
+      await onAdd({
+        title: trimmedTitle,
+        author: trimmedAuthor,
+        genre: genre.trim(),
+        status,
+        coverUrl: resolvedCoverUrl,
+        review: review.trim(),
+        rating: 0,
+      });
+      setTitle("");
+      setAuthor("");
+      setGenre("");
+      setStatus("want");
+      setCoverUrl("");
+      setReview("");
+    } finally {
+      setIsSearchingCover(false);
+    }
   }
 
   return (
@@ -40,6 +64,10 @@ export default function AddBookModal({ onAdd, onClose }) {
             <input value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://example.com/cover.jpg" className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Review</label>
+            <textarea value={review} onChange={(e) => setReview(e.target.value)} rows="3" className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Status</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700">
               <option value="want">Want to Read</option>
@@ -49,8 +77,12 @@ export default function AddBookModal({ onAdd, onClose }) {
           </div>
 
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Add</button>
+            <Button variant="secondary" size="md" onClick={onClose} type="button">
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" disabled={isSearchingCover}>
+              {isSearchingCover ? "Fetching cover..." : "Add"}
+            </Button>
           </div>
         </form>
       </div>

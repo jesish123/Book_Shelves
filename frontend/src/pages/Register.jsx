@@ -1,4 +1,5 @@
 import PublicLayout from "../layouts/PublicLayout";
+import { Link } from "react-router-dom";
 
 const Register = () => {
 
@@ -64,9 +65,10 @@ const Register = () => {
                      Create an account</button>
                </form>
 
-               <div className="mt-6 text-slate-900 text-sm text-center dark:text-slate-50">Already have an account? <a href="#"
-                  className="text-blue-700 hover:underline ml-1 font-medium dark:text-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
-                  Login here</a>
+               <div className="mt-6 text-slate-900 text-sm text-center dark:text-slate-50">Already have an account? 
+                  <Link to="/login" className="text-blue-700 hover:underline ml-1 font-medium dark:text-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
+                    Login here
+                  </Link>
                </div>
             </div>
          </div>

@@ -1,75 +1,56 @@
-const books = [
+const mongoose = require('mongoose');
+
+const bookSchema = new mongoose.Schema(
   {
-    id: 1,
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    cover: 'https://images-na.ssl-images-amazon.com/images/I/51-uspgqWIL._SX329_BO1,204,203,200_.jpg',
-    status: 'Completed',
-    rating: 5,
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    author: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    genre: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    coverUrl: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    status: {
+      type: String,
+      required: true,
+      trim: true,
+      enum: ['want', 'reading', 'finished'],
+      default: 'want',
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    review: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
   },
   {
-    id: 2,
-    title: 'The Alchemist',
-    author: 'Paulo Coelho',
-    cover: 'https://images-na.ssl-images-amazon.com/images/I/51Z0nLAfLmL._SX327_BO1,204,203,200_.jpg',
-    status: 'Want to Read',
-    rating: 0,
-  },
-];
-
-let nextId = books.length + 1;
-
-function getAllBooks() {
-  return books;
-}
-
-function getBookById(id) {
-  return books.find((book) => book.id === Number(id));
-}
-
-function createBook(data) {
-  const book = {
-    id: nextId++,
-    title: data.title,
-    author: data.author,
-    cover: data.cover || '',
-    status: data.status,
-    rating: Number.isFinite(Number(data.rating)) ? Number(data.rating) : 0,
-  };
-
-  books.push(book);
-  return book;
-}
-
-function updateBook(id, data) {
-  const book = getBookById(id);
-  if (!book) {
-    return null;
+    timestamps: true,
   }
+);
 
-  book.title = data.title ?? book.title;
-  book.author = data.author ?? book.author;
-  book.cover = data.cover ?? book.cover;
-  book.status = data.status ?? book.status;
-  book.rating = Number.isFinite(Number(data.rating)) ? Number(data.rating) : book.rating;
+const Book = mongoose.model('Book', bookSchema);
 
-  return book;
-}
-
-function deleteBook(id) {
-  const index = books.findIndex((book) => book.id === Number(id));
-  if (index === -1) {
-    return false;
-  }
-
-  books.splice(index, 1);
-  return true;
-}
-
-module.exports = {
-  getAllBooks,
-  getBookById,
-  createBook,
-  updateBook,
-  deleteBook,
-};
+module.exports = Book;

@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light;
+  background-color: #f8fafc;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.dark body {
+  color-scheme: dark;
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+.page-background {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.dark .page-background {
+  background-color: #0f172a;
+  color: #f8fafc;
+}

@@ -1,3 +1,4 @@
+import {Link} from "react-router-dom";
 
 function LoginForm() {
   return (
@@ -45,9 +46,9 @@ function LoginForm() {
           Remember Me
         </label>
 
-        <a href="#" className="text-blue-600 hover:underline text-sm">
+        <Link to="/forgot-password" className="text-blue-600 hover:underline text-sm">
           Forgot Password?
-        </a>
+        </Link>
       </div>
 
       <button
@@ -59,9 +60,9 @@ function LoginForm() {
 
       <p className="text-center text-sm">
         Don't have an account?{" "}
-        <a href="#" className="text-blue-600 hover:underline">
+        <Link to="/register" className="text-blue-600 hover:underline">
           Register
-        </a>
+        </Link>
       </p>
 
     </form>

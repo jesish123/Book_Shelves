@@ -1,63 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
+import Button from "../components/Button";
 import StarRating from "../components/StarRating";
-
-const initialBooks = [
-  {
-    id: 1,
-    title: "The Hobbit",
-    author: "J.R.R. Tolkien",
-    genre: "Fantasy",
-    status: "want",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/hobbit/80/120",
-  },
-  {
-    id: 2,
-    title: "Dune",
-    author: "Frank Herbert",
-    genre: "Sci-Fi",
-    status: "want",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/dune/80/120",
-  },
-  {
-    id: 3,
-    title: "The Name of the Wind",
-    author: "Patrick Rothfuss",
-    genre: "Fantasy",
-    status: "reading",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/wind/80/120",
-  },
-  {
-    id: 4,
-    title: "The Pragmatic Programmer",
-    author: "Andrew Hunt",
-    genre: "Tech",
-    status: "reading",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/pragmatic/80/120",
-  },
-  {
-    id: 5,
-    title: "1984",
-    author: "George Orwell",
-    genre: "Dystopia",
-    status: "finished",
-    rating: 5,
-    coverUrl: "https://picsum.photos/seed/1984/80/120",
-  },
-  {
-    id: 6,
-    title: "To Kill a Mockingbird",
-    author: "Harper Lee",
-    genre: "Classic",
-    status: "finished",
-    rating: 4,
-    coverUrl: "https://picsum.photos/seed/mockingbird/80/120",
-  },
-];
+import * as api from "../api";
 
 function OverviewCard({ title, value, description }) {
   return (
@@ -70,6 +15,8 @@ function OverviewCard({ title, value, description }) {
 }
 
 function BookOverviewCard({ book }) {
+  const [imageError, setImageError] = useState(false);
+  const hasCover = typeof book.coverUrl === "string" && book.coverUrl.trim().length > 0;
   const initials = book.title
     .split(" ")
     .filter(Boolean)
@@ -81,11 +28,12 @@ function BookOverviewCard({ book }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
       <div className="flex items-start gap-4">
-        {book.coverUrl ? (
+        {hasCover && !imageError ? (
           <img
             src={book.coverUrl}
             alt={`${book.title} cover`}
             className="h-16 w-16 rounded-2xl object-cover shadow-sm"
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-700 text-lg font-bold text-white">
@@ -108,21 +56,34 @@ function BookOverviewCard({ book }) {
 }
 
 const Dashboard = () => {
-  const [books] = useState(initialBooks);
+  const [books, setBooks] = useState([]);
+  const [counts, setCounts] = useState({ want: 0, reading: 0, finished: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const counts = useMemo(
-    () =>
-      books.reduce(
-        (acc, book) => {
-          if (book.status === "want") acc.want += 1;
-          if (book.status === "reading") acc.reading += 1;
-          if (book.status === "finished") acc.finished += 1;
-          return acc;
-        },
-        { want: 0, reading: 0, finished: 0 }
-      ),
-    [books]
-  );
+  useEffect(() => {
+    let mounted = true;
+
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [booksData, countsData] = await Promise.all([api.getBooks(), api.getCounts()]);
+        if (!mounted) return;
+        setBooks(booksData.map((book) => ({ ...book, id: book._id || book.id })));
+        setCounts(countsData || { want: 0, reading: 0, finished: 0 });
+      } catch (err) {
+        if (mounted) {
+          setError(err.message || 'Failed to load dashboard data');
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadData();
+    return () => { mounted = false; };
+  }, []);
 
   const byStatus = useMemo(
     () => ({
@@ -142,55 +103,68 @@ const Dashboard = () => {
             <p className="mt-2 text-slate-600">Overview of your book shelves and reading progress.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">View Library</button>
-            <button className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Add New Book</button>
+            <Button variant="ghost" size="md">View Library</Button>
+            <Button variant="success" size="md" onClick={() => {}}>Add New Book</Button>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <OverviewCard title="Total Books" value={books.length} description="Books in your collection." />
-          <OverviewCard title="Want to Read" value={counts.want} description="Ready for your next reads." />
-          <OverviewCard title="Reading Now" value={counts.reading} description="Books currently in progress." />
-          <OverviewCard title="Finished" value={counts.finished} description="Books you've completed." />
-        </div>
+        {loading && <div className="rounded border border-blue-200 bg-blue-50 p-4 text-blue-700">Loading dashboard…</div>}
+        {error && <div className="rounded border border-red-200 bg-red-50 p-4 text-red-600">{error}</div>}
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <section>
-            <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
-              <h2 className="text-lg font-semibold">Want to Read</h2>
-              <span className="text-sm text-slate-500">{counts.want}</span>
+        {!loading && !error && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <OverviewCard title="Total Books" value={books.length} description="Books in your collection." />
+              <OverviewCard title="Want to Read" value={counts.want} description="Ready for your next reads." />
+              <OverviewCard title="Reading Now" value={counts.reading} description="Books currently in progress." />
+              <OverviewCard title="Finished" value={counts.finished} description="Books you've completed." />
             </div>
-            <div className="space-y-4">
-              {byStatus.want.map((book) => (
-                <BookOverviewCard key={book.id} book={book} />
-              ))}
-            </div>
-          </section>
 
-          <section>
-            <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
-              <h2 className="text-lg font-semibold">Reading</h2>
-              <span className="text-sm text-slate-500">{counts.reading}</span>
-            </div>
-            <div className="space-y-4">
-              {byStatus.reading.map((book) => (
-                <BookOverviewCard key={book.id} book={book} />
-              ))}
-            </div>
-          </section>
+            <div className="grid gap-6 md:grid-cols-3">
+              <section>
+                <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
+                  <h2 className="text-lg font-semibold">Want to Read</h2>
+                  <span className="text-sm text-slate-500">{counts.want}</span>
+                </div>
+                <div className="space-y-4">
+                  {byStatus.want.length === 0 ? (
+                    <p className="rounded border border-dashed border-slate-200 p-4 text-sm text-slate-500">No books on this shelf yet.</p>
+                  ) : (
+                    byStatus.want.map((book) => <BookOverviewCard key={book.id} book={book} />)
+                  )}
+                </div>
+              </section>
 
-          <section>
-            <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
-              <h2 className="text-lg font-semibold">Finished</h2>
-              <span className="text-sm text-slate-500">{counts.finished}</span>
+              <section>
+                <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
+                  <h2 className="text-lg font-semibold">Reading</h2>
+                  <span className="text-sm text-slate-500">{counts.reading}</span>
+                </div>
+                <div className="space-y-4">
+                  {byStatus.reading.length === 0 ? (
+                    <p className="rounded border border-dashed border-slate-200 p-4 text-sm text-slate-500">No books on this shelf yet.</p>
+                  ) : (
+                    byStatus.reading.map((book) => <BookOverviewCard key={book.id} book={book} />)
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
+                  <h2 className="text-lg font-semibold">Finished</h2>
+                  <span className="text-sm text-slate-500">{counts.finished}</span>
+                </div>
+                <div className="space-y-4">
+                  {byStatus.finished.length === 0 ? (
+                    <p className="rounded border border-dashed border-slate-200 p-4 text-sm text-slate-500">No books on this shelf yet.</p>
+                  ) : (
+                    byStatus.finished.map((book) => <BookOverviewCard key={book.id} book={book} />)
+                  )}
+                </div>
+              </section>
             </div>
-            <div className="space-y-4">
-              {byStatus.finished.map((book) => (
-                <BookOverviewCard key={book.id} book={book} />
-              ))}
-            </div>
-          </section>
-        </div>
+          </>
+        )}
       </div>
     </AdminLayout>
   );

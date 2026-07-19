@@ -1,11 +1,11 @@
 const Footer = () => {
-    return(
-        <footer className="text-center bg-slate-100 text-slate-700 p-4 h-[5vh] dark:bg-slate-950 dark:text-slate-200">
-            <aside>
-                <p>Copyright © {new Date().getFullYear()} - Book Shelf</p>
-            </aside>
+    return (
+        <footer className="w-full h-16 bg-blue-600 text-white dark:bg-slate-950 dark:text-white shadow-sm flex items-center justify-center px-6">
+            <p className="text-sm md:text-base">
+                © {new Date().getFullYear()} Book Shelf. All Rights Reserved.
+            </p>
         </footer>
-    )
-}
+    );
+};
 
 export default Footer;

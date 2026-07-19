@@ -1,100 +1,89 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
+import Button from "../components/Button";
 import AddBookModal from "../components/AddBookModal";
 import BookCard from "../components/BookCard";
-
-const initialBooks = [
-  {
-    id: 1,
-    title: "The Hobbit",
-    author: "J.R.R. Tolkien",
-    genre: "Fantasy",
-    status: "want",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/hobbit/80/120",
-  },
-  {
-    id: 2,
-    title: "Dune",
-    author: "Frank Herbert",
-    genre: "Sci-Fi",
-    status: "want",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/dune/80/120",
-  },
-  {
-    id: 3,
-    title: "The Name of the Wind",
-    author: "Patrick Rothfuss",
-    genre: "Fantasy",
-    status: "reading",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/wind/80/120",
-  },
-  {
-    id: 4,
-    title: "The Pragmatic Programmer",
-    author: "Andrew Hunt",
-    genre: "Tech",
-    status: "reading",
-    rating: 0,
-    coverUrl: "https://picsum.photos/seed/pragmatic/80/120",
-  },
-  {
-    id: 5,
-    title: "1984",
-    author: "George Orwell",
-    genre: "Dystopia",
-    status: "finished",
-    rating: 5,
-    coverUrl: "https://picsum.photos/seed/1984/80/120",
-  },
-  {
-    id: 6,
-    title: "To Kill a Mockingbird",
-    author: "Harper Lee",
-    genre: "Classic",
-    status: "finished",
-    rating: 4,
-    coverUrl: "https://picsum.photos/seed/mockingbird/80/120",
-  },
-];
+import * as api from "../api";
 
 const BookPage = () => {
-  const [books, setBooks] = useState(() => initialBooks);
+  const [books, setBooks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [counts, setCounts] = useState({ want: 0, reading: 0, finished: 0 });
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const c = books.reduce(
-      (acc, b) => {
-        if (b.status === "want") acc.want += 1;
-        if (b.status === "reading") acc.reading += 1;
-        if (b.status === "finished") acc.finished += 1;
-        return acc;
-      },
-      { want: 0, reading: 0, finished: 0 }
-    );
-    setCounts(c);
-  }, [books]);
-
-  const addBook = (book) => {
-    setBooks((s) => [{ id: Date.now(), rating: 0, ...book }, ...s]);
-    setIsModalOpen(false);
+  const fetchBooks = async (status) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getBooks(status);
+      setBooks(data.map((book) => ({ ...book, id: book._id || book.id })));
+    } catch (err) {
+      setError(err.message || 'Failed to load books');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteBook = (id) => setBooks((s) => s.filter((b) => b.id !== id));
+  const fetchCounts = async () => {
+    try {
+      const countsData = await api.getCounts();
+      setCounts(countsData || { want: 0, reading: 0, finished: 0 });
+    } catch (err) {
+      setError((current) => current || err.message || 'Failed to load shelf counts');
+    }
+  };
 
-  const moveBook = (id, toStatus) =>
-    setBooks((s) => s.map((b) => (b.id === id ? { ...b, status: toStatus } : b)));
+  useEffect(() => {
+    fetchBooks(statusFilter === 'all' ? undefined : statusFilter);
+    fetchCounts();
+  }, [statusFilter]);
 
-  const setRating = (id, rating) =>
-    setBooks((s) => s.map((b) => (b.id === id ? { ...b, rating } : b)));
+  const addBook = async (book) => {
+    try {
+      const created = await api.createBook(book);
+      setBooks((current) => [{ ...created, id: created._id || created.id }, ...current]);
+      await fetchCounts();
+      setIsModalOpen(false);
+    } catch (err) {
+      setError(err.message || 'Failed to add book');
+    }
+  };
+
+  const deleteBook = async (id) => {
+    try {
+      await api.deleteBook(id);
+      setBooks((current) => current.filter((book) => book.id !== id));
+      await fetchCounts();
+    } catch (err) {
+      setError(err.message || 'Failed to delete');
+    }
+  };
+
+  const moveBook = async (id, toStatus) => {
+    try {
+      const updated = await api.updateBook(id, { status: toStatus });
+      setBooks((current) => current.map((book) => (book.id === id ? { ...updated, id: updated._id || updated.id } : book)));
+      await fetchCounts();
+    } catch (err) {
+      setError(err.message || 'Failed to update status');
+    }
+  };
+
+  const setRating = async (id, rating) => {
+    try {
+      const updated = await api.updateBook(id, { rating });
+      setBooks((current) => current.map((book) => (book.id === id ? { ...updated, id: updated._id || updated.id } : book)));
+    } catch (err) {
+      setError(err.message || 'Failed to update rating');
+    }
+  };
 
   const byStatus = useMemo(() => ({
-    want: books.filter((b) => b.status === "want"),
-    reading: books.filter((b) => b.status === "reading"),
-    finished: books.filter((b) => b.status === "finished"),
+    want: books.filter((book) => book.status === 'want'),
+    reading: books.filter((book) => book.status === 'reading'),
+    finished: books.filter((book) => book.status === 'finished'),
   }), [books]);
 
   return (
@@ -104,10 +93,22 @@ const BookPage = () => {
           <h1 className="text-3xl font-bold">My Book Shelves</h1>
           <p className="mt-2 text-slate-600">Track your want-to-read, currently reading, and finished books from one place.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-          + Add Book
-        </button>
+        <div className="flex items-center gap-3">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded border px-3 py-2">
+            <option value="all">All</option>
+            <option value="want">Want to Read</option>
+            <option value="reading">Reading</option>
+            <option value="finished">Finished</option>
+          </select>
+          <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>+ Add Book</Button>
+        </div>
       </div>
+
+      {loading && <div className="rounded border border-blue-200 bg-blue-50 p-4 text-blue-700">Loading books…</div>}
+      {error && <div className="rounded border border-red-200 bg-red-50 p-4 text-red-600">{error}</div>}
+      {!loading && !error && books.length === 0 && (
+        <div className="rounded border border-slate-200 bg-white p-6 text-slate-600">No books found for this selection.</div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-3">
         <section>

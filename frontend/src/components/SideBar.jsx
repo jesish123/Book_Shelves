@@ -36,7 +36,7 @@ function SideBar() {
 
             <li>
               <Link
-                to="/add-book"
+                to="/BookForm"
                 className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-blue-100 hover:text-blue-700"
               >
                 ➕ Add Book
