@@ -2,12 +2,14 @@ import ThemeToggle from "./ThemeToggle";
 
 function Header() {
   return (
-    <header className="w-full h-16 px-8 flex items-center justify-between bg-blue-600 text-white shadow-md dark:bg-slate-950">
-      <h1 className="text-3xl font-bold">
-        Book Shelf
-      </h1>
-
-      <ThemeToggle />
+    <header className="w-full border-b border-slate-200 bg-white/90 px-6 py-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Book Shelf</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">Your personal reading dashboard</h1>
+        </div>
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

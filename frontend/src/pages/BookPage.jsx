@@ -1,156 +1,366 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import Button from "../components/Button";
-import AddBookModal from "../components/AddBookModal";
 import BookCard from "../components/BookCard";
-import * as api from "../api";
+import AddBookModal from "../components/AddBookModal";
+import Button from "../components/Button";
+import StarRating from "../components/StarRating";
+import { getBooks, addBook, deleteBook as apiDeleteBook, getUsersOverview } from "../api";
+import axios from "axios";
 
-const BookPage = () => {
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const BookPage = ({ openAddModal = false }) => {
+  const [activeAdminTab, setActiveAdminTab] = useState("catalog"); // "catalog" | "users"
   const [books, setBooks] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [counts, setCounts] = useState({ want: 0, reading: 0, finished: 0 });
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchBooks = async (status) => {
+  // Users overview state
+  const [usersOverview, setUsersOverview] = useState({ totalUsers: 0, totalBooksInSystem: 0, users: [] });
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [expandedUserId, setExpandedUserId] = useState(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(openAddModal);
+  const [editingBook, setEditingBook] = useState(null);
+
+  const fetchAllBooks = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getBooks(status);
-      setBooks(data.map((book) => ({ ...book, id: book._id || book.id })));
+      const data = await getBooks();
+      setBooks(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || 'Failed to load books');
+      console.error("Failed to load books:", err);
+      setError("Failed to load books from database. Please check backend connection.");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCounts = async () => {
+  const fetchUsersData = async () => {
+    setLoadingUsers(true);
     try {
-      const countsData = await api.getCounts();
-      setCounts(countsData || { want: 0, reading: 0, finished: 0 });
+      const data = await getUsersOverview();
+      setUsersOverview(data);
     } catch (err) {
-      setError((current) => current || err.message || 'Failed to load shelf counts');
+      console.error("Failed to load users overview:", err);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
   useEffect(() => {
-    fetchBooks(statusFilter === 'all' ? undefined : statusFilter);
-    fetchCounts();
-  }, [statusFilter]);
+    if (openAddModal) {
+      setIsModalOpen(true);
+      setEditingBook(null);
+    }
+  }, [openAddModal]);
 
-  const addBook = async (book) => {
+  useEffect(() => {
+    fetchAllBooks();
+    fetchUsersData();
+  }, []);
+
+  const handleOpenAddModal = () => {
+    setEditingBook(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (book) => {
+    setEditingBook(book);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingBook(null);
+  };
+
+  const handleSaveBook = async (bookData) => {
     try {
-      const created = await api.createBook(book);
-      setBooks((current) => [{ ...created, id: created._id || created.id }, ...current]);
-      await fetchCounts();
-      setIsModalOpen(false);
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      if (editingBook) {
+        const bookId = editingBook._id || editingBook.id;
+        const res = await axios.patch(`${API_URL}/api/books/${bookId}`, bookData, { headers });
+        setBooks((prev) => prev.map((b) => ((b._id || b.id) === bookId ? res.data : b)));
+      } else {
+        const newBook = await addBook(bookData);
+        setBooks((prev) => [newBook, ...prev]);
+      }
+      fetchUsersData();
+      handleCloseModal();
     } catch (err) {
-      setError(err.message || 'Failed to add book');
+      console.error("Error saving book:", err);
+      alert("Failed to save book. Please ensure required fields are filled out.");
     }
   };
 
-  const deleteBook = async (id) => {
+  const handleDeleteBook = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this book?")) return;
     try {
-      await api.deleteBook(id);
-      setBooks((current) => current.filter((book) => book.id !== id));
-      await fetchCounts();
+      await apiDeleteBook(id);
+      setBooks((prev) => prev.filter((b) => (b._id || b.id) !== id));
+      fetchUsersData();
     } catch (err) {
-      setError(err.message || 'Failed to delete');
+      console.error("Failed to delete book:", err);
+      alert("Failed to delete book.");
     }
   };
 
-  const moveBook = async (id, toStatus) => {
-    try {
-      const updated = await api.updateBook(id, { status: toStatus });
-      setBooks((current) => current.map((book) => (book.id === id ? { ...updated, id: updated._id || updated.id } : book)));
-      await fetchCounts();
-    } catch (err) {
-      setError(err.message || 'Failed to update status');
-    }
-  };
-
-  const setRating = async (id, rating) => {
-    try {
-      const updated = await api.updateBook(id, { rating });
-      setBooks((current) => current.map((book) => (book.id === id ? { ...updated, id: updated._id || updated.id } : book)));
-    } catch (err) {
-      setError(err.message || 'Failed to update rating');
-    }
-  };
-
-  const byStatus = useMemo(() => ({
-    want: books.filter((book) => book.status === 'want'),
-    reading: books.filter((book) => book.status === 'reading'),
-    finished: books.filter((book) => book.status === 'finished'),
-  }), [books]);
+  const filteredBooks = books.filter((b) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (b.title || "").toLowerCase().includes(term) ||
+      (b.author || "").toLowerCase().includes(term) ||
+      (b.genre || "").toLowerCase().includes(term)
+    );
+  });
 
   return (
     <AdminLayout>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">My Book Shelves</h1>
-          <p className="mt-2 text-slate-600">Track your want-to-read, currently reading, and finished books from one place.</p>
+      <div className="space-y-6">
+        {/* Top Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin Control Center</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Manage database books & monitor registered user reading activities and reviews.
+            </p>
+          </div>
+          {activeAdminTab === "catalog" && (
+            <Button variant="primary" size="md" onClick={handleOpenAddModal}>
+              ➕ Add New Book
+            </Button>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded border px-3 py-2">
-            <option value="all">All</option>
-            <option value="want">Want to Read</option>
-            <option value="reading">Reading</option>
-            <option value="finished">Finished</option>
-          </select>
-          <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>+ Add Book</Button>
+
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-3 dark:border-slate-800">
+          <button
+            onClick={() => setActiveAdminTab("catalog")}
+            className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+              activeAdminTab === "catalog"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+            }`}
+          >
+            📚 Book Catalog (CRUD)
+            <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">{books.length}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveAdminTab("users")}
+            className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+              activeAdminTab === "users"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+            }`}
+          >
+            👥 Registered Users & Reading Activity
+            <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">
+              {usersOverview.totalUsers}
+            </span>
+          </button>
         </div>
+
+        {/* TAB 1: CATALOG CRUD */}
+        {activeAdminTab === "catalog" && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <input
+                type="text"
+                placeholder="🔍 Search by title, author, or genre..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full max-w-md rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              />
+              <span className="text-xs text-slate-500 font-medium">
+                Total Books: {filteredBooks.length}
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Loading catalog...</p>
+              </div>
+            ) : error ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+                {error}
+              </div>
+            ) : filteredBooks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="text-4xl">📖</div>
+                <h3 className="mt-3 text-lg font-semibold text-slate-900 dark:text-slate-100">No books found</h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  {searchTerm ? "No books match your search." : "Catalog is empty. Add a book to get started!"}
+                </p>
+                <div className="mt-6">
+                  <Button variant="primary" size="md" onClick={handleOpenAddModal}>
+                    ➕ Add New Book
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                {filteredBooks.map((book) => (
+                  <BookCard
+                    key={book._id || book.id}
+                    book={book}
+                    adminMode={true}
+                    onDelete={handleDeleteBook}
+                    onEdit={handleOpenEditModal}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: REGISTERED USERS & READING ACTIVITY */}
+        {activeAdminTab === "users" && (
+          <div className="space-y-6">
+            {/* Overview Stats */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Registered Users</p>
+                <p className="mt-2 text-3xl font-extrabold text-blue-600">{usersOverview.totalUsers}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Books Logged</p>
+                <p className="mt-2 text-3xl font-extrabold text-indigo-600">{usersOverview.totalBooksInSystem}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Readers</p>
+                <p className="mt-2 text-3xl font-extrabold text-emerald-600">
+                  {usersOverview.users?.filter((u) => u.totalBooks > 0).length || 0}
+                </p>
+              </div>
+            </div>
+
+            {loadingUsers ? (
+              <div className="flex justify-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+              </div>
+            ) : usersOverview.users?.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+                No users found.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {usersOverview.users?.map((u) => {
+                  const isExpanded = expandedUserId === u.id;
+                  return (
+                    <div
+                      key={u.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                              👤 {u.first_name} {u.last_name}
+                            </span>
+                            {u.role === "admin" && (
+                              <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                                ADMIN
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{u.email}</p>
+                        </div>
+
+                        {/* Shelf Counters */}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                            Want to Read: {u.wantCount}
+                          </span>
+                          <span className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                            Reading: {u.readingCount}
+                          </span>
+                          <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            Finished: {u.finishedCount}
+                          </span>
+
+                          <button
+                            onClick={() => setExpandedUserId(isExpanded ? null : u.id)}
+                            className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                          >
+                            {isExpanded ? "Hide Books & Reviews ▲" : `View Books (${u.totalBooks}) ▼`}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Expandable Reading Activity & Reviews */}
+                      {isExpanded && (
+                        <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">
+                            Reading List & Reviews for {u.first_name}:
+                          </h4>
+                          {u.books?.length === 0 ? (
+                            <p className="text-xs text-slate-500 italic">This user hasn't added any books yet.</p>
+                          ) : (
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                              {u.books.map((b) => (
+                                <div
+                                  key={b._id || b.id}
+                                  className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/50"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                        {b.title}
+                                      </h5>
+                                      <p className="text-xs text-slate-600 dark:text-slate-400">by {b.author}</p>
+                                    </div>
+                                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                      {b.status === "want" ? "Want to Read" : b.status === "reading" ? "Reading" : "Finished"}
+                                    </span>
+                                  </div>
+
+                                  {b.status === "finished" && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <span className="text-xs text-slate-500 font-semibold">Rating:</span>
+                                      <StarRating value={b.rating || 0} readOnly={true} />
+                                    </div>
+                                  )}
+
+                                  {b.review && (
+                                    <div className="mt-2 rounded-lg bg-white p-2.5 text-xs italic border border-slate-200 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                                      "{b.review}"
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {loading && <div className="rounded border border-blue-200 bg-blue-50 p-4 text-blue-700">Loading books…</div>}
-      {error && <div className="rounded border border-red-200 bg-red-50 p-4 text-red-600">{error}</div>}
-      {!loading && !error && books.length === 0 && (
-        <div className="rounded border border-slate-200 bg-white p-6 text-slate-600">No books found for this selection.</div>
+      {/* Add / Edit Modal */}
+      {isModalOpen && (
+        <AddBookModal
+          onClose={handleCloseModal}
+          onAdd={handleSaveBook}
+          initialData={editingBook}
+          isEditing={Boolean(editingBook)}
+        />
       )}
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <section>
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-100 px-4 py-3">
-            <h2 className="text-lg font-semibold">Want to Read</h2>
-            <span className="text-sm text-slate-500">{counts.want}</span>
-          </div>
-          <div className="space-y-4">
-            {byStatus.want.map((book) => (
-              <BookCard key={book.id} book={book} onMove={moveBook} onDelete={deleteBook} onRate={setRating} />
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-100 px-4 py-3">
-            <h2 className="text-lg font-semibold">Reading</h2>
-            <span className="text-sm text-slate-500">{counts.reading}</span>
-          </div>
-          <div className="space-y-4">
-            {byStatus.reading.map((book) => (
-              <BookCard key={book.id} book={book} onMove={moveBook} onDelete={deleteBook} onRate={setRating} />
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-100 px-4 py-3">
-            <h2 className="text-lg font-semibold">Finished</h2>
-            <span className="text-sm text-slate-500">{counts.finished}</span>
-          </div>
-          <div className="space-y-4">
-            {byStatus.finished.map((book) => (
-              <BookCard key={book.id} book={book} onMove={moveBook} onDelete={deleteBook} onRate={setRating} />
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {isModalOpen && <AddBookModal onAdd={addBook} onClose={() => setIsModalOpen(false)} />}
     </AdminLayout>
   );
 };
 
 export default BookPage;
+
+

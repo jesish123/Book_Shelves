@@ -1,30 +1,27 @@
-import React, { useEffect, useState } from "react";
-
-export default function StarRating({ value = 0, onChange }) {
-  const [selectedRating, setSelectedRating] = useState(value);
-
-  useEffect(() => {
-    setSelectedRating(value);
-  }, [value]);
-
+const StarRating = ({ value = 0, onChange, readOnly = false }) => {
   const handleSelect = (v) => {
-    setSelectedRating(v);
-    onChange?.(v);
+    if (!readOnly && onChange) {
+      onChange(v);
+    }
   };
 
   return (
-    <div className="flex items-center gap-1 text-2xl text-amber-500">
+    <div className="flex items-center gap-1 text-2xl text-amber-500 select-none">
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
           type="button"
-          className="transition hover:text-amber-400"
+          disabled={readOnly}
+          className={`transition ${readOnly ? "cursor-default opacity-90" : "cursor-pointer hover:scale-110 hover:text-amber-400"}`}
           onClick={() => handleSelect(star)}
           aria-label={`${star} star`}
         >
-          {star <= selectedRating ? "★" : "☆"}
+          {star <= value ? "★" : "☆"}
         </button>
       ))}
     </div>
   );
-}
+};
+
+export default StarRating;
+

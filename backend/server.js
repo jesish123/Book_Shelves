@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
@@ -5,19 +6,31 @@ const connectDB = require('./src/config/db');
 connectDB();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-const taskRoutes = require('./src/routes/taskRoutes');
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 const booksRoutes = require('./src/routes/booksRoutes');
+const AuthRoutes = require('./src/routes/AuthRoutes');
+const userRoutes = require('./src/routes/userRoutes');
+const verifyToken = require('./src/middlewares/VerifyToken');
+
+const passport = require('passport');
+require('./src/config/passport');
+
+app.use(passport.initialize());
 
 app.get('/', (req, res) => {
   res.send('Express Server is running');
 });
 
-app.use('/api/tasks', taskRoutes);
-app.use('/api/books', booksRoutes);
-app.use('/books', booksRoutes);
+app.use('/auth', AuthRoutes);
+app.use('/api/users', userRoutes);
+app.use('/users', userRoutes);
+app.use('/api/books', verifyToken, booksRoutes);
+app.use('/books', verifyToken, booksRoutes);
+
 
 const PORT = process.env.PORT || 3000;
 

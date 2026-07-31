@@ -1,14 +1,43 @@
 import { useState } from "react";
-import { getBookCoverUrl } from "../api";
 import Button from "./Button";
 
-export default function AddBookModal({ onAdd, onClose }) {
-  const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
-  const [genre, setGenre] = useState("");
-  const [status, setStatus] = useState("want");
-  const [coverUrl, setCoverUrl] = useState("");
-  const [review, setReview] = useState("");
+async function getBookCoverUrl(title, author) {
+  const cleanTitle = (title || '').trim();
+  const cleanAuthor = (author || '').trim();
+
+  if (!cleanTitle && !cleanAuthor) {
+    return '';
+  }
+
+  const queryParts = [];
+  if (cleanTitle) queryParts.push(`intitle:${encodeURIComponent(cleanTitle)}`);
+  if (cleanAuthor) queryParts.push(`inauthor:${encodeURIComponent(cleanAuthor)}`);
+
+  const query = queryParts.join('+');
+  if (!query) return '';
+
+  try {
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`);
+    if (!response.ok) {
+      return '';
+    }
+
+    const data = await response.json();
+    const imageLinks = data?.items?.[0]?.volumeInfo?.imageLinks || {};
+    const imageUrl = imageLinks.thumbnail || imageLinks.smallThumbnail || '';
+    return imageUrl.replace(/^http:\/\//i, 'https://');
+  } catch {
+    return '';
+  }
+}
+
+function AddBookModal({ onAdd, onClose, initialData = null, isEditing = false }) {
+  const [title, setTitle] = useState(initialData?.title || "");
+  const [author, setAuthor] = useState(initialData?.author || "");
+  const [genre, setGenre] = useState(initialData?.genre || "");
+  const [status, setStatus] = useState(initialData?.status || "want");
+  const [coverUrl, setCoverUrl] = useState(initialData?.coverUrl || "");
+  const [review, setReview] = useState(initialData?.review || "");
   const [isSearchingCover, setIsSearchingCover] = useState(false);
 
   async function submit(e) {
@@ -45,7 +74,9 @@ export default function AddBookModal({ onAdd, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded p-6 w-full max-w-md shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800">
-        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">Add Book</h3>
+        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+          {isEditing ? "Edit Book" : "Add Book"}
+        </h3>
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Title</label>
@@ -81,7 +112,7 @@ export default function AddBookModal({ onAdd, onClose }) {
               Cancel
             </Button>
             <Button variant="primary" size="md" type="submit" disabled={isSearchingCover}>
-              {isSearchingCover ? "Fetching cover..." : "Add"}
+              {isSearchingCover ? "Fetching cover..." : (isEditing ? "Update" : "Add")}
             </Button>
           </div>
         </form>
@@ -89,3 +120,5 @@ export default function AddBookModal({ onAdd, onClose }) {
     </div>
   );
 }
+
+export default AddBookModal;

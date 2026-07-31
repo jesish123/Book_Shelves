@@ -1,62 +1,59 @@
-import axios from 'axios';
+import axios from "axios";
 
-const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api/books';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const client = axios.create({ baseURL: BASE, timeout: 10000 });
+const getAuthHeaders = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem('token')}`,
+  },
+});
 
-export async function getBooks(status) {
-  const params = {};
-  if (status && status !== 'all') params.status = status;
-  const res = await client.get('/', { params });
-  return res.data;
-}
+export const getBooks = async (status) => {
+  const url = status && status !== "all" 
+    ? `${API_URL}/books?status=${status}` 
+    : `${API_URL}/books`;
+  const response = await axios.get(url, getAuthHeaders());
+  return response.data;
+};
 
-export async function getCounts() {
-  const res = await client.get('/counts');
-  return res.data;
-}
-
-export async function createBook(payload) {
-  const res = await client.post('/', payload);
-  return res.data;
-}
-
-export async function updateBook(id, payload) {
-  const res = await client.put(`/${id}`, payload);
-  return res.data;
-}
-
-export async function deleteBook(id) {
-  const res = await client.delete(`/${id}`);
-  return res.data;
-}
-
-export async function getBookCoverUrl(title, author) {
-  const cleanTitle = (title || '').trim();
-  const cleanAuthor = (author || '').trim();
-
-  if (!cleanTitle && !cleanAuthor) {
-    return '';
-  }
-
-  const queryParts = [];
-  if (cleanTitle) queryParts.push(`intitle:${encodeURIComponent(cleanTitle)}`);
-  if (cleanAuthor) queryParts.push(`inauthor:${encodeURIComponent(cleanAuthor)}`);
-
-  const query = queryParts.join('+');
-  if (!query) return '';
-
+export const getCounts = async () => {
   try {
-    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`);
-    if (!response.ok) {
-      return '';
-    }
-
-    const data = await response.json();
-    const imageLinks = data?.items?.[0]?.volumeInfo?.imageLinks || {};
-    const imageUrl = imageLinks.thumbnail || imageLinks.smallThumbnail || '';
-    return imageUrl.replace(/^http:\/\//i, 'https://');
+    const response = await axios.get(`${API_URL}/books/counts`, getAuthHeaders());
+    return response.data;
   } catch {
-    return '';
+    // Fallback if backend /books/counts endpoint is not implemented: compute from all books
+    const books = await getBooks();
+    return {
+      want: books.filter((b) => b.status === "want" || b.status === "pending").length,
+      reading: books.filter((b) => b.status === "reading" || b.status === "in-progress").length,
+      finished: books.filter((b) => b.status === "finished" || b.status === "completed").length,
+    };
   }
-}
+};
+
+export const addBook = async (bookData) => {
+  const response = await axios.post(`${API_URL}/books`, bookData, getAuthHeaders());
+  return response.data;
+};
+
+export const updateBookStatus = async (id, status) => {
+  const response = await axios.patch(`${API_URL}/books/${id}`, { status }, getAuthHeaders());
+  return response.data;
+};
+
+export const deleteBook = async (id) => {
+  const response = await axios.delete(`${API_URL}/books/${id}`, getAuthHeaders());
+  return response.data;
+};
+
+export const getUsersOverview = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/api/users/overview`, getAuthHeaders());
+    return response.data;
+  } catch {
+    const response = await axios.get(`${API_URL}/api/books/admin/users-overview`, getAuthHeaders());
+    return response.data;
+  }
+};
+
+
