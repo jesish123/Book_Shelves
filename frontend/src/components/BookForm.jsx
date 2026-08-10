@@ -1,5 +1,5 @@
 
-function BookForm() {
+const BookForm = () => {
 
    return (
    <form className="flex flex-col justify-center max-w-lg mx-auto px-4 space-y-6 mt-6">

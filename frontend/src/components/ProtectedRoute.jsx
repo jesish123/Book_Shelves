@@ -17,13 +17,25 @@ const isTokenExpired = (token) => {
   }
 };
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, adminOnly = false }) => {
   const token = localStorage.getItem('token');
+  const userStr = localStorage.getItem('user');
 
   if (!token || isTokenExpired(token)) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      if (user.role !== 'admin') {
+        return <Navigate to="/user/dashboard" replace />;
+      }
+    } catch {
+      return <Navigate to="/login" replace />;
+    }
   }
 
   return children ? children : <Outlet />;

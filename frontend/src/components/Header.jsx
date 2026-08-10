@@ -1,6 +1,6 @@
 import ThemeToggle from "./ThemeToggle";
 
-function Header() {
+const Header = () => {
   return (
     <header className="w-full border-b border-slate-200 bg-white/90 px-6 py-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
       <div className="flex items-center justify-between">

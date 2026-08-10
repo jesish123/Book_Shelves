@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import StarRating from "./StarRating";
 import Button from "./Button";
 
-function CoverPlaceholder({ title, coverUrl }) {
+const CoverPlaceholder = ({ title, coverUrl }) => {
   const [imageError, setImageError] = useState(false);
   const hasCover = typeof coverUrl === "string" && coverUrl.trim().length > 0;
 
@@ -12,6 +13,7 @@ function CoverPlaceholder({ title, coverUrl }) {
         src={coverUrl}
         alt={`${title} cover`}
         className="h-20 w-14 rounded-md object-cover shadow-sm border border-slate-200 dark:border-slate-700 shrink-0"
+        referrerPolicy="no-referrer"
         onError={() => setImageError(true)}
       />
     );
@@ -32,7 +34,7 @@ function CoverPlaceholder({ title, coverUrl }) {
   );
 }
 
-export default function BookCard({ book, onMove, onDelete, onRate, onEdit, adminMode = false }) {
+const BookCard = ({ book, onMove, onDelete, onRate, onEdit, onAddToShelf, onSummarize, summary, summarizing = false, alreadyAdded = false, adminMode = false, readOnly = false, hideRating = false, hideStatus = false, detailsLink, sourceLabel }) => {
   const bookId = book._id || book.id;
   const cover = book.coverUrl || book.coverImage || "";
 
@@ -40,13 +42,43 @@ export default function BookCard({ book, onMove, onDelete, onRate, onEdit, admin
     <article className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-900 dark:border-slate-800">
       <div className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
-          <CoverPlaceholder title={book.title} coverUrl={cover} />
+          {detailsLink ? (
+            <Link to={detailsLink} className="shrink-0 hover:opacity-80 transition">
+              <CoverPlaceholder title={book.title} coverUrl={cover} />
+            </Link>
+          ) : (
+            <CoverPlaceholder title={book.title} coverUrl={cover} />
+          )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate">{book.title}</h3>
+            {detailsLink ? (
+              <Link to={detailsLink} className="block text-base font-bold text-slate-900 dark:text-slate-100 truncate hover:text-blue-600">
+                {book.title}
+              </Link>
+            ) : (
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate">{book.title}</h3>
+            )}
             <p className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate">{book.author}</p>
+            {!hideStatus && book.status && (
+              <span
+                className={`inline-flex mt-2 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                  book.status === 'want'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                    : book.status === 'reading'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                }`}
+              >
+                {book.status === 'want' ? 'Want to Read' : book.status === 'reading' ? 'Reading' : 'Finished'}
+              </span>
+            )}
             {book.genre && (
               <span className="inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                 {book.genre}
+              </span>
+            )}
+            {sourceLabel && (
+              <span className="inline-block mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                {sourceLabel}
               </span>
             )}
             {book.review && (
@@ -57,7 +89,7 @@ export default function BookCard({ book, onMove, onDelete, onRate, onEdit, admin
           </div>
         </div>
 
-        {!adminMode && book.status === "finished" && (
+        {!readOnly && !adminMode && book.status === "finished" && !hideRating && (
           <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-800">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Rating</span>
             <StarRating value={book.rating || 0} onChange={(value) => onRate && onRate(bookId, value)} />
@@ -65,9 +97,9 @@ export default function BookCard({ book, onMove, onDelete, onRate, onEdit, admin
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-        {adminMode ? (
-          <div className="flex items-center gap-2 w-full justify-end">
+      <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
+        {readOnly ? null : adminMode ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => onEdit && onEdit(book)}>
               ✏️ Edit
             </Button>
@@ -75,36 +107,75 @@ export default function BookCard({ book, onMove, onDelete, onRate, onEdit, admin
               🗑️ Delete
             </Button>
           </div>
+        ) : onAddToShelf ? (
+          <div className="flex w-full justify-end">
+            <Button
+              variant={alreadyAdded ? "secondary" : "primary"}
+              size="sm"
+              onClick={() => !alreadyAdded && onAddToShelf(bookId)}
+              disabled={alreadyAdded}
+            >
+              {alreadyAdded ? "In Shelf" : "➕ Add to Shelf"}
+            </Button>
+          </div>
         ) : (
-          <>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
               {book.status === "want" && (
                 <>
-                  <Button variant="warning" size="sm" onClick={() => onMove(bookId, "reading")}>Start Reading</Button>
-                  <Button variant="success" size="sm" onClick={() => onMove(bookId, "finished")}>Mark Finished</Button>
+                  <Button variant="warning" size="sm" onClick={() => onMove && onMove(bookId, "reading")}>Start Reading</Button>
+                  <Button variant="success" size="sm" onClick={() => onMove && onMove(bookId, "finished")}>Mark Finished</Button>
                 </>
               )}
               {book.status === "reading" && (
                 <>
-                  <Button variant="secondary" size="sm" onClick={() => onMove(bookId, "want")}>Move to Want</Button>
-                  <Button variant="success" size="sm" onClick={() => onMove(bookId, "finished")}>Finish Book</Button>
+                  <Button variant="secondary" size="sm" onClick={() => onMove && onMove(bookId, "want")}>Move to Want</Button>
+                  <Button variant="success" size="sm" onClick={() => onMove && onMove(bookId, "finished")}>Finish Book</Button>
                 </>
               )}
               {book.status === "finished" && (
                 <>
-                  <Button variant="warning" size="sm" onClick={() => onMove(bookId, "reading")}>Re-read</Button>
-                  <Button variant="secondary" size="sm" onClick={() => onMove(bookId, "want")}>Want Again</Button>
+                  <Button variant="warning" size="sm" onClick={() => onMove && onMove(bookId, "reading")}>Re-read</Button>
+                  <Button variant="secondary" size="sm" onClick={() => onMove && onMove(bookId, "want")}>Want Again</Button>
                 </>
               )}
             </div>
-            {onDelete && (
-              <Button variant="danger" size="sm" onClick={() => onDelete(bookId)}>Delete</Button>
-            )}
-          </>
+
+            <div className="flex flex-wrap gap-2 justify-end">
+              {onDelete && (
+                <Button variant="danger" size="sm" onClick={() => onDelete(bookId)}>Delete</Button>
+              )}
+              {onSummarize && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onSummarize && onSummarize(bookId)}
+                  disabled={summarizing}
+                >
+                  {summarizing ? 'Summarizing...' : summary ? 'Refresh Summary' : 'Summarize'}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+        {detailsLink && (
+          <div className="mt-3">
+            <Link to={detailsLink} className="text-sm font-semibold text-blue-600 hover:underline">
+              View details
+            </Link>
+          </div>
         )}
       </div>
+      {summary && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+          <span className="font-semibold text-slate-900 dark:text-slate-100">Summary:</span>
+          <p className="mt-2 whitespace-pre-line">{summary}</p>
+        </div>
+      )}
     </article>
   );
 }
+
+export default BookCard;
 
 

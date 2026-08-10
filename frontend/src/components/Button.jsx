@@ -1,5 +1,5 @@
 
-export default function Button({
+const Button = ({
   children,
   variant = "primary",
   size = "md",
@@ -14,7 +14,7 @@ export default function Button({
   fullWidth = false,
   pill = false,
   ...rest
-}) {
+}) => {
   const base = "inline-flex items-center justify-center font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed";
   const sizes = {
     sm: "px-2.5 py-1.5 text-sm",
@@ -60,3 +60,6 @@ export default function Button({
     </button>
   );
 }
+
+
+export default Button;

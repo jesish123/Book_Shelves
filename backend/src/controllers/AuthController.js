@@ -1,6 +1,47 @@
 const UserModel = require('../models/UserModal');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+
+const createEmailTransporter = () => {
+  const host = process.env.EMAIL_HOST;
+  const port = parseInt(process.env.EMAIL_PORT, 10) || 587;
+  const secure = process.env.EMAIL_SECURE === 'true';
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+
+  if (!host || !user || !pass) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+  });
+};
+
+const sendResetCodeEmail = async (email, code) => {
+  const transporter = createEmailTransporter();
+  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@bookshelves.app';
+  const message = {
+    from: fromAddress,
+    to: email,
+    subject: 'Book Shelves Password Reset Code',
+    text: `Your password reset code is ${code}. It expires in 5 minutes.`,
+    html: `<p>Your password reset code is <strong>${code}</strong>.</p><p>It expires in 5 minutes.</p>`,
+  };
+
+  console.log(`Password reset code for ${email}: ${code} (valid 5 minutes)`);
+
+  if (!transporter) {
+    console.warn('Email transporter not configured. Reset code not sent by email.');
+    return;
+  }
+
+  await transporter.sendMail(message);
+};
 
 const registerUser = async (req, res) => {
     const { first_name, last_name, email, password, confirm_password, accept_terms } = req.body;
@@ -70,7 +111,106 @@ const loginUser = async (req, res) => {
     }
 };
 
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+    }
+
+    try {
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await UserModel.findOne({ email: normalizedEmail });
+        if (!user) {
+            return res.status(200).json({ message: 'If that email is registered, a reset code has been sent.' });
+        }
+
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiry = new Date(Date.now() + 5 * 60 * 1000);
+
+        user.resetCode = resetCode;
+        user.resetCodeExpiry = expiry;
+        await user.save();
+
+        await sendResetCodeEmail(user.email, resetCode);
+        res.status(200).json({ message: 'Password reset code sent to your email. It will expire in 5 minutes.' });
+    } catch (error) {
+        console.error('Forgot password error:', error.message);
+        res.status(500).json({ message: 'Unable to process password reset request', error: error.message });
+    }
+};
+
+const verifyResetCode = async (req, res) => {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+        return res.status(400).json({ message: 'Email and reset code are required' });
+    }
+
+    try {
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await UserModel.findOne({ email: normalizedEmail });
+        if (!user || !user.resetCode || !user.resetCodeExpiry) {
+            return res.status(400).json({ message: 'Invalid or expired reset code' });
+        }
+
+        if (user.resetCode !== code) {
+            return res.status(400).json({ message: 'Invalid reset code' });
+        }
+
+        if (Date.now() > new Date(user.resetCodeExpiry).getTime()) {
+            return res.status(400).json({ message: 'Reset code has expired' });
+        }
+
+        res.status(200).json({ message: 'Reset code verified' });
+    } catch (error) {
+        console.error('Verify reset code error:', error.message);
+        res.status(500).json({ message: 'Unable to verify reset code', error: error.message });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    const { email, code, password, confirm_password } = req.body;
+
+    if (!email || !code || !password || !confirm_password) {
+        return res.status(400).json({ message: 'Email, code, and password fields are required' });
+    }
+
+    if (password !== confirm_password) {
+        return res.status(400).json({ message: 'Passwords do not match' });
+    }
+
+    try {
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await UserModel.findOne({ email: normalizedEmail });
+        if (!user || !user.resetCode || !user.resetCodeExpiry) {
+            return res.status(400).json({ message: 'Invalid or expired reset code' });
+        }
+
+        if (user.resetCode !== code) {
+            return res.status(400).json({ message: 'Invalid reset code' });
+        }
+
+        if (Date.now() > new Date(user.resetCodeExpiry).getTime()) {
+            return res.status(400).json({ message: 'Reset code has expired' });
+        }
+
+        user.password = await bcrypt.hash(password, 10);
+        user.resetCode = null;
+        user.resetCodeExpiry = null;
+        await user.save();
+
+        res.status(200).json({ message: 'Password reset successful. You can now log in.' });
+    } catch (error) {
+        console.error('Reset password error:', error.message);
+        res.status(500).json({ message: 'Unable to reset password', error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
-    loginUser
+    loginUser,
+    forgotPassword,
+    verifyResetCode,
+    resetPassword
 };
