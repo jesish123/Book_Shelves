@@ -24,7 +24,7 @@ const Button = ({
 
   const variantMap = {
     primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
-    secondary: "bg-slate-200 text-slate-900 hover:bg-slate-300 focus:ring-slate-400",
+    secondary: "bg-slate-200 text-slate-900 hover:bg-slate-300 focus:ring-slate-400 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
     success: "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500",
     danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-400",
     warning: "bg-amber-400 text-slate-900 hover:bg-amber-500 focus:ring-amber-400",

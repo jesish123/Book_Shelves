@@ -1,29 +1,49 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
+
 const ThemeToggle = () => {
- const [isDarkMode, setIsDarkMode]= useState(false);
-
-useEffect(() => {
-   const root = document.documentElement;
-    if (isDarkMode) {
-      root.style.setProperty("--color-primary", "#043E9A");  
-      root.style.setProperty("--color-secondary", "#70A5FB");
-    } else {
-      root.style.setProperty("--color-primary", "#70A5FB"); 
-      root.style.setProperty("--color-secondary","#043E9A");
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme) {
+        return savedTheme === "dark";
+      }
+      return document.documentElement.classList.contains("dark") ||
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
     }
-},[isDarkMode])
+    return false;
+  });
 
-    return (
-        <div>
-        <button 
-            onClick= {() => setIsDarkMode(!isDarkMode)}
-            className="bg-primary hover:bg-secondary text-white px-6  rounded-lg  duration-300 cursor-pointer"
-        >
-            {isDarkMode ?'Light Mode':'Dark Mode'}
-        </button>
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDarkMode]);
 
-      </div>
-    )
-}
+  return (
+    <button
+      type="button"
+      onClick={() => setIsDarkMode((prev) => !prev)}
+      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+      aria-label="Toggle dark mode theme"
+    >
+      {isDarkMode ? (
+        <>
+          <span>☀️</span>
+          <span>Light Mode</span>
+        </>
+      ) : (
+        <>
+          <span>🌙</span>
+          <span>Dark Mode</span>
+        </>
+      )}
+    </button>
+  );
+};
 
 export default ThemeToggle;
