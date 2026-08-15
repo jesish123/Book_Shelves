@@ -9,6 +9,7 @@ router.post('/register', AuthController.registerUser);
 
 // Login route
 router.post('/login', AuthController.loginUser);
+router.post('/logout', AuthController.logoutUser);
 
 router.post('/forgot-password', AuthController.forgotPassword);
 router.post('/verify-reset-code', AuthController.verifyResetCode);

@@ -1,20 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import StarRating from "./StarRating";
 import Button from "./Button";
 
-const CoverPlaceholder = ({ title, coverUrl }) => {
+const getCoverCandidates = (book = {}) => {
+  const isbn = (book.isbn || book.ISBN || "").toString().replace(/[^0-9Xx]/g, "").toUpperCase();
+  if (!isbn) return [];
+
+  return [
+    `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`,
+    `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`,
+    `https://covers.openlibrary.org/b/isbn/${isbn}-S.jpg`,
+  ];
+};
+
+const CoverPlaceholder = ({ title, coverUrl, book }) => {
   const [imageError, setImageError] = useState(false);
-  const hasCover = typeof coverUrl === "string" && coverUrl.trim().length > 0;
+  const [currentSrcIndex, setCurrentSrcIndex] = useState(0);
+  const coverCandidates = [...(coverUrl ? [coverUrl] : []), ...getCoverCandidates(book)];
+  const uniqueCandidates = Array.from(new Set(coverCandidates.filter(Boolean)));
+  const currentSrc = uniqueCandidates[currentSrcIndex] || "";
+
+  useEffect(() => {
+    setCurrentSrcIndex(0);
+    setImageError(false);
+  }, [coverUrl, book?.isbn, book?.ISBN]);
+
+  const handleImageError = () => {
+    if (currentSrcIndex < uniqueCandidates.length - 1) {
+      setCurrentSrcIndex((prev) => prev + 1);
+      return;
+    }
+    setImageError(true);
+  };
+
+  const hasCover = typeof currentSrc === "string" && currentSrc.trim().length > 0;
 
   if (hasCover && !imageError) {
     return (
       <img
-        src={coverUrl}
+        src={currentSrc}
         alt={`${title} cover`}
         className="h-20 w-14 rounded-md object-cover shadow-sm border border-slate-200 dark:border-slate-700 shrink-0"
-        referrerPolicy="no-referrer"
-        onError={() => setImageError(true)}
+        referrerPolicy="origin"
+        onError={handleImageError}
       />
     );
   }
@@ -36,7 +65,8 @@ const CoverPlaceholder = ({ title, coverUrl }) => {
 
 const BookCard = ({ book, onMove, onDelete, onRate, onEdit, onAddToShelf, onSummarize, summary, summarizing = false, alreadyAdded = false, adminMode = false, readOnly = false, hideRating = false, hideStatus = false, detailsLink, sourceLabel }) => {
   const bookId = book._id || book.id;
-  const cover = book.coverUrl || book.coverImage || "";
+  const isbn = book.isbn || book.ISBN || "";
+  const cover = book.coverUrl || book.coverImage || (isbn ? `https://covers.openlibrary.org/b/isbn/${isbn.replace(/[^0-9Xx]/g, '').toUpperCase()}-L.jpg` : "");
 
   return (
     <article className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-900 dark:border-slate-800">
@@ -44,10 +74,10 @@ const BookCard = ({ book, onMove, onDelete, onRate, onEdit, onAddToShelf, onSumm
         <div className="flex items-start gap-3">
           {detailsLink ? (
             <Link to={detailsLink} className="shrink-0 hover:opacity-80 transition">
-              <CoverPlaceholder title={book.title} coverUrl={cover} />
+              <CoverPlaceholder title={book.title} coverUrl={cover} book={book} />
             </Link>
           ) : (
-            <CoverPlaceholder title={book.title} coverUrl={cover} />
+            <CoverPlaceholder title={book.title} coverUrl={cover} book={book} />
           )}
           <div className="flex-1 min-w-0">
             {detailsLink ? (

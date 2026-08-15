@@ -39,6 +39,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/user/dashboard"
           element={
@@ -47,11 +48,21 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/library"
           element={
             <ProtectedRoute>
               <LibraryPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />
@@ -64,6 +75,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/books/:id"
           element={
@@ -72,6 +84,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/add-book"
           element={
@@ -80,6 +93,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/user/profile"
           element={
@@ -88,6 +102,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/want-to-read"
           element={
@@ -96,6 +111,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/reading"
           element={
@@ -104,6 +120,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/finished"
           element={
@@ -112,6 +129,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

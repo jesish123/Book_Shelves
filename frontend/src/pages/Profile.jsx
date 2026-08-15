@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import PublicLayout from "../layouts/PublicLayout";
 import Button from "../components/Button";
+import UserInfo from "../components/UserInfo";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -104,20 +105,7 @@ const Profile = () => {
                 </div>
               )}
 
-              <div className="mt-6 space-y-4 text-sm text-slate-700 dark:text-slate-300">
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-slate-100">Name</p>
-                  <p>{user ? `${user.first_name} ${user.last_name}` : '—'}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-slate-100">Email</p>
-                  <p>{user?.email || '—'}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-slate-100">Role</p>
-                  <p>{user?.role || 'user'}</p>
-                </div>
-              </div>
+              <UserInfo user={user} />
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/90">

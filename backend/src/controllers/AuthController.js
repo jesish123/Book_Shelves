@@ -69,7 +69,8 @@ const registerUser = async (req, res) => {
             first_name,
             last_name,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            status: 'offline'
         });
 
         res.status(201).json({ message: 'User registered successfully', user: newUser });
@@ -97,17 +98,54 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        user.status = 'online';
+        await user.save();
+
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
             process.env.JWT_SECRET || 'super_secret_jwt_key_12345',
             { expiresIn: '1h' }
         );
 
-        res.status(200).json({ message: 'Login successful', token, user: { _id: user._id, first_name: user.first_name, last_name: user.last_name, email: user.email, role: user.role } });
+        res.status(200).json({
+            message: 'Login successful',
+            token,
+            user: {
+                _id: user._id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            }
+        });
 
     } catch (error) {
         console.error('Error logging in:', error.message);
         res.status(500).json({ message: 'Error logging in', error: error.message });
+    }
+};
+
+const logoutUser = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.status = 'offline';
+        await user.save();
+
+        return res.status(200).json({ message: 'Logout successful' });
+    } catch (error) {
+        console.error('Error logging out:', error.message);
+        return res.status(500).json({ message: 'Error logging out', error: error.message });
     }
 };
 
@@ -210,6 +248,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
+    logoutUser,
     forgotPassword,
     verifyResetCode,
     resetPassword

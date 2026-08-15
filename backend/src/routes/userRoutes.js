@@ -8,6 +8,7 @@ router.use(verifyToken);
 
 // User routes
 router.get('/', userController.getAllUsers);
+router.delete('/:id', userController.deleteUser);
 router.get('/me', userController.getUserProfile);
 router.patch('/me/password', userController.updatePassword);
 router.get('/overview', userController.getUsersOverview);

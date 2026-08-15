@@ -1,4 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const SideBar = () => {
   const navigate = useNavigate();
@@ -11,10 +14,23 @@ const SideBar = () => {
   })();
   const isAdmin = user.role === "admin";
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        await axios.post(
+          `${API_URL}/auth/logout`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    } catch (error) {
+      console.error("Logout status update failed:", error);
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/login");
+    }
   };
 
   return (

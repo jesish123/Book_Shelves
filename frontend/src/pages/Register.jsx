@@ -102,7 +102,7 @@ const Register = () => {
                 <span className="ml-3 text-sm text-slate-700 dark:text-slate-300">I accept the</span>
               </label>
 
-              <a href="#" className="ml-1 rounded text-sm font-medium text-blue-700 hover:underline">Terms and Conditions</a>
+              <a href="#" className="ml-1 rounded text-sm font-medium text-blue-700 hover:underline">Terms & Conditions</a>
             </div>
 
             <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 py-2.75 font-semibold text-white shadow-lg shadow-blue-200 transition hover:opacity-90">

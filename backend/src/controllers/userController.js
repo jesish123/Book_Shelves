@@ -12,6 +12,36 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const deleteUser = async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const userId = req.params.id;
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: 'Cannot delete admin users' });
+    }
+
+    await UserModel.findByIdAndDelete(userId);
+    await bookModel.deleteMany({ userId });
+    await bookModel.updateMany(
+      { members: { $exists: true } },
+      { $pull: { members: { userId } } }
+    );
+
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting user', error: error.message });
+  }
+};
+
 // Get current user profile
 const getUserProfile = async (req, res) => {
   try {
@@ -20,7 +50,16 @@ const getUserProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.status(200).json(user);
+
+    if (!user.status) {
+      user.status = 'online';
+      await user.save();
+    }
+
+    res.status(200).json({
+      ...user.toObject(),
+      status: user.status || 'online'
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving profile', error: error.message });
   }
@@ -92,7 +131,7 @@ const getUsersOverview = async (req, res) => {
       };
     });
 
-    const totalBooksInSystem = usersData.reduce((sum, user) => sum + user.totalBooks, 0);
+    const totalBooksInSystem = await bookModel.countDocuments({});
 
     res.status(200).json({
       totalUsers: users.length,
@@ -106,6 +145,7 @@ const getUsersOverview = async (req, res) => {
 
 module.exports = {
   getAllUsers,
+  deleteUser,
   getUserProfile,
   updatePassword,
   getUsersOverview,

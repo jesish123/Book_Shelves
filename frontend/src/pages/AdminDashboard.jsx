@@ -53,6 +53,23 @@ const AdminDashboard = () => {
     loadAdminData();
   }, []);
 
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Delete this user? This action cannot be undone.")) return;
+
+    try {
+      await axios.delete(`${API_URL}/api/users/${userId}`, getAuthHeaders());
+      setUsersOverview((prev) => ({
+        ...prev,
+        totalUsers: Math.max(0, prev.totalUsers - 1),
+        users: prev.users.filter((user) => user.id !== userId),
+      }));
+      setExpandedUserId((prev) => (prev === userId ? null : prev));
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      setError(err.response?.data?.message || "Unable to delete user.");
+    }
+  };
+
   const booksByGenre = books.reduce((acc, book) => {
     const genreKey = book.genre?.trim() || "Unspecified";
     if (!acc[genreKey]) acc[genreKey] = [];
@@ -151,6 +168,10 @@ const AdminDashboard = () => {
                           </div>
 
                           <div className="flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                              <span className={`h-2.5 w-2.5 rounded-full ${u.status === "online" ? "bg-emerald-500" : "bg-slate-400"}`}></span>
+                              {u.status === "online" ? "Online" : "Offline"}
+                            </span>
                             <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                               Want: {u.wantCount}
                             </span>
@@ -167,6 +188,15 @@ const AdminDashboard = () => {
                             >
                               {isExpanded ? "Hide Books & Reviews ▲" : `View Books (${u.totalBooks}) ▼`}
                             </button>
+
+                            {!u.role || u.role !== "admin" ? (
+                              <button
+                                onClick={() => handleDeleteUser(u.id)}
+                                className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                              >
+                                Delete User
+                              </button>
+                            ) : null}
                           </div>
                         </div>
 

@@ -14,6 +14,17 @@ const getAuthHeaders = () => ({
   },
 });
 
+const getCoverCandidates = (book = {}) => {
+  const isbn = (book.isbn || book.ISBN || "").toString().replace(/[^0-9Xx]/g, "").toUpperCase();
+  if (!isbn) return [];
+
+  return [
+    `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`,
+    `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`,
+    `https://covers.openlibrary.org/b/isbn/${isbn}-S.jpg`,
+  ];
+};
+
 const BookDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,6 +37,7 @@ const BookDetails = () => {
   const [alreadyAdded, setAlreadyAdded] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [coverSrc, setCoverSrc] = useState("");
 
   useEffect(() => {
     try {
@@ -43,6 +55,8 @@ const BookDetails = () => {
       const response = await axios.get(`${API_URL}/api/books/${id}`, getAuthHeaders());
       const bookData = response.data;
       setBook(bookData);
+      const candidateList = [...(bookData.coverUrl ? [bookData.coverUrl] : []), ...getCoverCandidates(bookData)];
+      setCoverSrc(Array.from(new Set(candidateList.filter(Boolean)))[0] || "");
       setReview(bookData.review || "");
       setRating(bookData.rating || 0);
       setAlreadyAdded(Boolean(bookData.userId || bookData._memberId));
@@ -111,6 +125,20 @@ const BookDetails = () => {
   const isLibrarySource = book && Boolean(book._memberId);
   const canReview = book && book.status !== "want" && !isAdmin;
 
+  const handleCoverError = () => {
+    if (!book) return;
+    const candidates = [...(book.coverUrl ? [book.coverUrl] : []), ...getCoverCandidates(book)];
+    const uniqueCandidates = Array.from(new Set(candidates.filter(Boolean)));
+    const nextIndex = uniqueCandidates.indexOf(coverSrc) + 1;
+
+    if (nextIndex > 0 && nextIndex < uniqueCandidates.length) {
+      setCoverSrc(uniqueCandidates[nextIndex]);
+      return;
+    }
+
+    setCoverSrc("");
+  };
+
   // Compute analytics
   let totalSaves = 0;
   let avgRating = 0;
@@ -159,8 +187,8 @@ const BookDetails = () => {
             {/* Left Column: Cover & Actions */}
             <div className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                {book.coverUrl ? (
-                  <img src={book.coverUrl} alt={`${book.title} cover`} referrerPolicy="no-referrer" className="h-96 w-full rounded-2xl object-cover shadow-md" />
+                {coverSrc ? (
+                  <img src={coverSrc} alt={`${book.title} cover`} referrerPolicy="origin" onError={handleCoverError} className="h-96 w-full rounded-2xl object-cover shadow-md" />
                 ) : (
                   <div className="flex h-96 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md">
                     <span className="text-3xl font-bold">{(book.title || "").slice(0, 2).toUpperCase() || "BK"}</span>
