@@ -1,22 +1,23 @@
-import Header from '../components/Header'
-import Footer from "../components/Footer"
-const PublicLayout = ({children}) =>{
+import Header from '../components/Header';
+import SideBar from "../components/SideBar";
+import Footer from "../components/Footer";
 
+const PublicLayout = ({ children }) => {
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-            <div>
-                <Header/>
+        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+            <Header />
+
+            <div className="flex flex-1">
+                <SideBar />
+
+                <main className="flex-1 overflow-y-auto p-6">
+                    {children}
+                </main>
             </div>
-            <div className=' grow flex items-center justify-center'>
-                {children}
-            </div>
-            <div>
-                <Footer/>
-            </div>
+
+            <Footer />
         </div>
     );
-
-
-}
+};
 
 export default PublicLayout;

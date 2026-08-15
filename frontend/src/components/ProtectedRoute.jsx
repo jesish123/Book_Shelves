@@ -1,32 +1,47 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+
 
 const isTokenExpired = (token) => {
-  if (!token) return true;
-  try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return true;
-    const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
-    const decoded = JSON.parse(decodedJson);
+    try {
+        const decoded = jwtDecode(token);
 
-    if (decoded.exp) {
-      return Date.now() >= decoded.exp * 1000;
+        // JWT 'exp' is in seconds; Date.now() is in milliseconds
+        if (decoded.exp) {
+            return Date.now() >= decoded.exp * 1000;
+        }
+
+        return false; // Token doesn't have an exp claim
+    } catch (error) {
+
+        return true;
+
     }
-    return false;
-  } catch {
-    return true;
-  }
 };
 
-const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+    const token = localStorage.getItem('token');
 
-  if (!token || isTokenExpired(token)) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    return <Navigate to="/login" replace />;
-  }
+    if (!token || isTokenExpired(token)) {
+        localStorage.removeItem('token');
+        return <Navigate to="/login" replace />;
+    }
 
-  return children ? children : <Outlet />;
+    try {
+        const decoded = jwtDecode(token);
+        if (adminOnly && decoded.role !== 'admin') {
+            return <Navigate to="/user/dashboard" replace />;
+        }
+    } catch (error) {
+        localStorage.removeItem('token');
+        return <Navigate to="/login" replace />;
+    }
+
+    if (children) {
+        return children;
+    }
+
+    return <Outlet />;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoute;

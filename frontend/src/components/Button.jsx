@@ -1,5 +1,5 @@
 
-export default function Button({
+const Button = ({
   children,
   variant = "primary",
   size = "md",
@@ -14,7 +14,7 @@ export default function Button({
   fullWidth = false,
   pill = false,
   ...rest
-}) {
+}) => {
   const base = "inline-flex items-center justify-center font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed";
   const sizes = {
     sm: "px-2.5 py-1.5 text-sm",
@@ -24,7 +24,7 @@ export default function Button({
 
   const variantMap = {
     primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
-    secondary: "bg-slate-200 text-slate-900 hover:bg-slate-300 focus:ring-slate-400",
+    secondary: "bg-slate-200 text-slate-900 hover:bg-slate-300 focus:ring-slate-400 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
     success: "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500",
     danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-400",
     warning: "bg-amber-400 text-slate-900 hover:bg-amber-500 focus:ring-amber-400",
@@ -60,3 +60,6 @@ export default function Button({
     </button>
   );
 }
+
+
+export default Button;

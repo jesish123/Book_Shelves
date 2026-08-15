@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Button from "./Button";
 
-async function getBookCoverUrl(title, author) {
+const getBookCoverUrl = async (title, author) => {
   const cleanTitle = (title || '').trim();
   const cleanAuthor = (author || '').trim();
 
@@ -31,88 +31,201 @@ async function getBookCoverUrl(title, author) {
   }
 }
 
-function AddBookModal({ onAdd, onClose, initialData = null, isEditing = false }) {
-  const [title, setTitle] = useState(initialData?.title || "");
-  const [author, setAuthor] = useState(initialData?.author || "");
-  const [genre, setGenre] = useState(initialData?.genre || "");
-  const [status, setStatus] = useState(initialData?.status || "want");
-  const [coverUrl, setCoverUrl] = useState(initialData?.coverUrl || "");
-  const [review, setReview] = useState(initialData?.review || "");
+const AddBookModal = ({ onAdd, onClose, initialData = null, isEditing = false }) => {
+  const [formData, setFormData] = useState({
+    title: initialData?.title || "",
+    subtitle: initialData?.subtitle || "",
+    author: initialData?.author || "",
+    isbn: initialData?.isbn || "",
+    genre: initialData?.genre || "",
+    publisher: initialData?.publisher || "",
+    publicationDate: initialData?.publicationDate ? new Date(initialData.publicationDate).toISOString().split('T')[0] : "",
+    language: initialData?.language || "English",
+    pageCount: initialData?.pageCount || "",
+    description: initialData?.description || "",
+    coverUrl: initialData?.coverUrl || "",
+    stockQuantity: initialData?.stockQuantity || 0,
+    shelfLocation: initialData?.shelfLocation || "",
+    availabilityStatus: initialData?.availabilityStatus || "active",
+    status: initialData?.status || "want",
+  });
+  const [file, setFile] = useState(null);
   const [isSearchingCover, setIsSearchingCover] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState("");
 
-  async function submit(e) {
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !author.trim()) return;
-
-    const trimmedTitle = title.trim();
-    const trimmedAuthor = author.trim();
-    const trimmedCoverUrl = coverUrl.trim();
+    setError("");
+    if (!formData.title.trim() || !formData.author.trim()) {
+      setError("Title and author are required.");
+      return;
+    }
 
     setIsSearchingCover(true);
     try {
-      const resolvedCoverUrl = trimmedCoverUrl || (await getBookCoverUrl(trimmedTitle, trimmedAuthor));
+      let finalFileUrl = formData.fileUrl || "";
+      if (file) {
+        setIsUploading(true);
+        const fileData = new FormData();
+        fileData.append('bookFile', file);
+        const uploadRes = await fetch('/api/books/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: fileData
+        });
+        if (uploadRes.ok) {
+          const resData = await uploadRes.json();
+          finalFileUrl = resData.fileUrl;
+        } else {
+          throw new Error('File upload failed');
+        }
+        setIsUploading(false);
+      }
+
+      const resolvedCoverUrl = formData.coverUrl.trim() || (await getBookCoverUrl(formData.title.trim(), formData.author.trim()));
       await onAdd({
-        title: trimmedTitle,
-        author: trimmedAuthor,
-        genre: genre.trim(),
-        status,
+        ...formData,
         coverUrl: resolvedCoverUrl,
-        review: review.trim(),
-        rating: 0,
+        fileUrl: finalFileUrl,
       });
-      setTitle("");
-      setAuthor("");
-      setGenre("");
-      setStatus("want");
-      setCoverUrl("");
-      setReview("");
+    } catch (err) {
+      setError(err.message || "Failed to save book.");
     } finally {
       setIsSearchingCover(false);
+      setIsUploading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded p-6 w-full max-w-md shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800">
-        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
-          {isEditing ? "Edit Book" : "Add Book"}
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl p-6 w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800">
+        <h3 className="text-xl font-semibold mb-4 text-slate-900 dark:text-slate-100">
+          {isEditing ? "Edit Book Metadata" : "Add New Book"}
         </h3>
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Title</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+        
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300 shrink-0">
+            {error}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Author</label>
-            <input value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Genre</label>
-            <input value={genre} onChange={(e) => setGenre(e.target.value)} className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Cover URL</label>
-            <input value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://example.com/cover.jpg" className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Review</label>
-            <textarea value={review} onChange={(e) => setReview(e.target.value)} rows="3" className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full border px-3 py-2 rounded bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700">
-              <option value="want">Want to Read</option>
-              <option value="reading">Reading</option>
-              <option value="finished">Finished</option>
-            </select>
+        )}
+        
+        <form onSubmit={submit} className="flex-1 overflow-y-auto pr-2 space-y-6">
+          {/* Core Info */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-2 dark:border-slate-700">Core Identification</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Title *</label>
+                <input name="title" value={formData.title} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Author(s) *</label>
+                <input name="author" value={formData.author} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Genre / Categories</label>
+                <input name="genre" value={formData.genre} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Cover Image URL</label>
+                <input name="coverUrl" value={formData.coverUrl} onChange={handleChange} placeholder="Leave empty to auto-fetch from Google Books" className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+
+              {isEditing && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Subtitle</label>
+                    <input name="subtitle" value={formData.subtitle} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">ISBN-10 / ISBN-13</label>
+                    <input name="isbn" value={formData.isbn} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2">
+          {isEditing && (
+            <>
+              {/* Categorization and Metadata */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-2 dark:border-slate-700">Categorization & Metadata</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Publisher</label>
+                <input name="publisher" value={formData.publisher} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Publication Date</label>
+                <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Language</label>
+                <input name="language" value={formData.language} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Page Count</label>
+                <input type="number" name="pageCount" value={formData.pageCount} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description / Synopsis</label>
+              <textarea name="description" rows={3} value={formData.description} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Readable File (PDF/EPUB)</label>
+              <input type="file" accept=".pdf,.epub" onChange={handleFileChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              {formData.fileUrl && !file && <p className="text-xs mt-1 text-emerald-600 dark:text-emerald-400">Current file linked: {formData.fileUrl.split('/').pop()}</p>}
+            </div>
+          </div>
+
+          {/* Inventory and System Status */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-2 dark:border-slate-700">Inventory & Status</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Stock Quantity</label>
+                <input type="number" name="stockQuantity" value={formData.stockQuantity} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Shelf Location</label>
+                <input name="shelfLocation" value={formData.shelfLocation} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Availability</label>
+                <select name="availabilityStatus" value={formData.availabilityStatus} onChange={handleChange} className="mt-1 w-full border px-3 py-2 rounded-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700">
+                  <option value="active">Active</option>
+                  <option value="out of stock">Out of Stock</option>
+                  <option value="archived">Archived</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+            </div>
+          </div>
+            </>
+          )}
+          
+          <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700 shrink-0 sticky bottom-0 bg-white dark:bg-slate-900 py-2">
             <Button variant="secondary" size="md" onClick={onClose} type="button">
               Cancel
             </Button>
-            <Button variant="primary" size="md" type="submit" disabled={isSearchingCover}>
-              {isSearchingCover ? "Fetching cover..." : (isEditing ? "Update" : "Add")}
+            <Button variant="primary" size="md" type="submit" disabled={isSearchingCover || isUploading || !formData.title.trim() || !formData.author.trim()}>
+              {isUploading ? "Uploading file..." : isSearchingCover ? "Fetching cover..." : (isEditing ? "Save Changes" : "Add Book")}
             </Button>
           </div>
         </form>

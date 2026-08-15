@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import PublicLayout from "../layouts/PublicLayout";
+import AuthLayout from "../layouts/AuthLayout";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -50,8 +50,8 @@ const Register = () => {
   };
 
   return (
-    <PublicLayout>
-      <main className="flex min-h-screen flex-col items-center justify-center px-4 py-10 md:px-8">
+    <AuthLayout>
+      <main className="flex flex-col items-center justify-center px-4 py-10 md:px-8">
         <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-2xl shadow-blue-100 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90 md:p-8">
           <div className="mb-6 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Create account</p>
@@ -102,7 +102,7 @@ const Register = () => {
                 <span className="ml-3 text-sm text-slate-700 dark:text-slate-300">I accept the</span>
               </label>
 
-              <a href="#" className="ml-1 rounded text-sm font-medium text-blue-700 hover:underline">Terms and Conditions</a>
+              <a href="#" className="ml-1 rounded text-sm font-medium text-blue-700 hover:underline">Terms & Conditions</a>
             </div>
 
             <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 py-2.75 font-semibold text-white shadow-lg shadow-blue-200 transition hover:opacity-90">
@@ -116,7 +116,7 @@ const Register = () => {
           </div>
         </div>
       </main>
-    </PublicLayout>
+    </AuthLayout>
   );
 };
 

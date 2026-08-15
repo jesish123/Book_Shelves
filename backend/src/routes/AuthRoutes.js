@@ -9,6 +9,11 @@ router.post('/register', AuthController.registerUser);
 
 // Login route
 router.post('/login', AuthController.loginUser);
+router.post('/logout', AuthController.logoutUser);
+
+router.post('/forgot-password', AuthController.forgotPassword);
+router.post('/verify-reset-code', AuthController.verifyResetCode);
+router.post('/reset-password', AuthController.resetPassword);
 
 // Google OAuth routes
 router.get(
@@ -39,4 +44,4 @@ router.get(
   }
 );
 
-module.exports = router;
+module.exports = router;

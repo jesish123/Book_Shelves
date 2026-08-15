@@ -1,66 +1,97 @@
 import { useEffect, useState } from "react";
-import AdminLayout from "../layouts/AdminLayout";
+import { useNavigate } from "react-router-dom";
+import PublicLayout from "../layouts/PublicLayout";
 import BookCard from "../components/BookCard";
-import AddBookModal from "../components/AddBookModal";
 import Button from "../components/Button";
-import { getBooks, addBook, updateBookStatus, deleteBook as apiDeleteBook } from "../api";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-export default function UserDashboard() {
+const getAuthHeaders = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+});
+
+const UserDashboard = () => {
+  const navigate = useNavigate();
   // Feature 1: useState for books array with status field ('want', 'reading', 'finished')
-  const [books, setBooks] = useState([]);
+  const [allBooks, setAllBooks] = useState([]);
+  const [visibleBooks, setVisibleBooks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("all");
 
   // Column header count calculations using state / useEffect
   const [counts, setCounts] = useState({ want: 0, reading: 0, finished: 0 });
+  const [summaries, setSummaries] = useState({});
+  const [loadingSummaryId, setLoadingSummaryId] = useState(null);
 
-  const fetchUserBooks = async () => {
+  const fetchAllUserBooks = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/books`, getAuthHeaders());
+      const userBooksList = Array.isArray(response.data) ? response.data : [];
+      setAllBooks(userBooksList);
+      if (selectedStatus === "all") {
+        setVisibleBooks(userBooksList);
+      }
+    } catch (err) {
+      console.error("Failed to fetch all user books:", err);
+    }
+  };
+
+  const fetchVisibleBooks = async (status = "all") => {
     setLoading(true);
     try {
-      const data = await getBooks();
-      const userBooksList = Array.isArray(data) ? data : [];
-      setBooks(userBooksList);
+      const url = status && status !== "all"
+        ? `${API_URL}/books?status=${encodeURIComponent(status)}`
+        : `${API_URL}/books`;
+      const response = await axios.get(url, getAuthHeaders());
+      const userBooksList = Array.isArray(response.data) ? response.data : [];
+      setVisibleBooks(userBooksList);
     } catch (err) {
-      console.error("Failed to fetch user books:", err);
+      console.error("Failed to fetch visible user books:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUserBooks();
+    fetchAllUserBooks();
   }, []);
+
+  useEffect(() => {
+    fetchVisibleBooks(selectedStatus);
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    const handleBookAdded = () => {
+      fetchAllUserBooks();
+      fetchVisibleBooks(selectedStatus);
+    };
+
+    window.addEventListener('bookAddedToShelf', handleBookAdded);
+    return () => window.removeEventListener('bookAddedToShelf', handleBookAdded);
+  }, [selectedStatus]);
 
   // Feature 6: useEffect: count books per shelf, show in column header
   useEffect(() => {
-    const want = books.filter((b) => b.status === "want").length;
-    const reading = books.filter((b) => b.status === "reading").length;
-    const finished = books.filter((b) => b.status === "finished").length;
+    const want = allBooks.filter((b) => b.status === "want").length;
+    const reading = allBooks.filter((b) => b.status === "reading").length;
+    const finished = allBooks.filter((b) => b.status === "finished").length;
     setCounts({ want, reading, finished });
-  }, [books]);
+  }, [allBooks]);
 
   // Feature 2: AddBookModal submission
-  const handleAddBook = async (bookData) => {
-    try {
-      const newBook = await addBook(bookData);
-      setBooks((prev) => [newBook, ...prev]);
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error("Failed to add book:", err);
-      alert("Failed to add book. Please fill required fields.");
-    }
-  };
-
   // Feature 3: Move book between columns by changing status
   const handleMoveStatus = async (id, newStatus) => {
-    setBooks((prev) =>
+    setVisibleBooks((prev) =>
+      prev.map((b) => ((b._id || b.id) === id ? { ...b, status: newStatus } : b))
+    );
+    setAllBooks((prev) =>
       prev.map((b) => ((b._id || b.id) === id ? { ...b, status: newStatus } : b))
     );
     try {
-      await updateBookStatus(id, newStatus);
+      await axios.patch(`${API_URL}/books/${id}`, { status: newStatus }, getAuthHeaders());
     } catch (err) {
       console.error("Failed to update status on server:", err);
     }
@@ -69,9 +100,10 @@ export default function UserDashboard() {
   // Feature 4: Delete book from list
   const handleDeleteBook = async (id) => {
     if (!window.confirm("Remove this book from your reading list?")) return;
-    setBooks((prev) => prev.filter((b) => (b._id || b.id) !== id));
+    setVisibleBooks((prev) => prev.filter((b) => (b._id || b.id) !== id));
+    setAllBooks((prev) => prev.filter((b) => (b._id || b.id) !== id));
     try {
-      await apiDeleteBook(id);
+      await axios.delete(`${API_URL}/books/${id}`, getAuthHeaders());
     } catch (err) {
       console.error("Failed to delete book on server:", err);
     }
@@ -79,28 +111,57 @@ export default function UserDashboard() {
 
   // Feature 5: Star rating component with useState for finished books
   const handleRateBook = async (id, rating) => {
-    setBooks((prev) =>
+    setVisibleBooks((prev) =>
+      prev.map((b) => ((b._id || b.id) === id ? { ...b, rating } : b))
+    );
+    setAllBooks((prev) =>
       prev.map((b) => ((b._id || b.id) === id ? { ...b, rating } : b))
     );
     try {
       const token = localStorage.getItem("token");
       await axios.patch(
-        `${API_URL}/api/books/${id}`,
+        `${API_URL}/books/${id}`,
         { rating },
-        { headers: { Authorization: `Bearer ${token}` } }
+        getAuthHeaders()
       );
     } catch (err) {
       console.error("Failed to update rating on server:", err);
     }
   };
 
+  const handleSummarizeBook = async (id) => {
+    setLoadingSummaryId(id);
+    try {
+      const response = await axios.post(`${API_URL}/books/${id}/summarize`, {}, getAuthHeaders());
+      if (response.data?.summary) {
+        setSummaries((prev) => ({ ...prev, [id]: response.data.summary }));
+      }
+    } catch (err) {
+      console.error("Failed to summarize book:", err);
+      alert("Unable to generate book summary at this time.");
+    } finally {
+      setLoadingSummaryId(null);
+    }
+  };
 
-  const wantBooks = books.filter((b) => b.status === "want");
-  const readingBooks = books.filter((b) => b.status === "reading");
-  const finishedBooks = books.filter((b) => b.status === "finished");
+  const wantBooks = visibleBooks.filter((b) => b.status === "want");
+  const readingBooks = visibleBooks.filter((b) => b.status === "reading");
+  const finishedBooks = visibleBooks.filter((b) => b.status === "finished");
+
+  const groupByGenre = (books) =>
+    books.reduce((grouped, book) => {
+      const genre = (book.genre || "Uncategorized").trim() || "Uncategorized";
+      if (!grouped[genre]) grouped[genre] = [];
+      grouped[genre].push(book);
+      return grouped;
+    }, {});
+
+  const wantBooksByGenre = groupByGenre(wantBooks);
+  const readingBooksByGenre = groupByGenre(readingBooks);
+  const finishedBooksByGenre = groupByGenre(finishedBooks);
 
   return (
-    <AdminLayout>
+    <PublicLayout>
       <div className="space-y-6">
         {/* User Dashboard Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 text-white shadow-md">
@@ -110,12 +171,24 @@ export default function UserDashboard() {
               Manage your personal library across reading shelves with live status updates.
             </p>
           </div>
-          <Button variant="secondary" size="md" onClick={() => setIsModalOpen(true)}>
-            ➕ Add Book to Shelf
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="rounded-xl border border-white/40 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-300"
+            >
+              <option className="text-slate-900" value="all">All Statuses</option>
+              <option className="text-slate-900" value="want">Want to Read</option>
+              <option className="text-slate-900" value="reading">Reading</option>
+              <option className="text-slate-900" value="finished">Finished</option>
+            </select>
+            <Button variant="primary" size="md" onClick={() => navigate("/library") }>
+              📚 Go to Library
+            </Button>
+          </div>
         </div>
 
-        {/* 3-Column Shelf Layout: Want to Read | Currently Reading | Finished Reading */}
+      {/* 3-Column Shelf Layout: Want to Read | Currently Reading | Finished Reading */}
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
@@ -139,15 +212,26 @@ export default function UserDashboard() {
                     No books in Want to Read shelf
                   </div>
                 ) : (
-                  wantBooks.map((book) => (
-                    <BookCard
-                      key={book._id || book.id}
-                      book={book}
-                      adminMode={false}
-                      onMove={handleMoveStatus}
-                      onDelete={handleDeleteBook}
-                      onRate={handleRateBook}
-                    />
+                  Object.entries(wantBooksByGenre).map(([genre, books]) => (
+                    <div key={genre} className="space-y-3">
+                      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{genre}</h3>
+                      <div className="space-y-4">
+                        {books.map((book) => (
+                          <BookCard
+                            key={book._id || book.id}
+                            book={book}
+                            adminMode={false}
+                            onMove={handleMoveStatus}
+                            onDelete={handleDeleteBook}
+                            onRate={handleRateBook}
+                            onSummarize={handleSummarizeBook}
+                            summary={summaries[book._id || book.id]}
+                            summarizing={loadingSummaryId === (book._id || book.id)}
+                            sourceLabel={book._memberId ? 'From Library' : 'My Shelf'}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
@@ -170,15 +254,26 @@ export default function UserDashboard() {
                     No books currently being read
                   </div>
                 ) : (
-                  readingBooks.map((book) => (
-                    <BookCard
-                      key={book._id || book.id}
-                      book={book}
-                      adminMode={false}
-                      onMove={handleMoveStatus}
-                      onDelete={handleDeleteBook}
-                      onRate={handleRateBook}
-                    />
+                  Object.entries(readingBooksByGenre).map(([genre, books]) => (
+                    <div key={genre} className="space-y-3">
+                      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{genre}</h3>
+                      <div className="space-y-4">
+                        {books.map((book) => (
+                          <BookCard
+                            key={book._id || book.id}
+                            book={book}
+                            adminMode={false}
+                            onMove={handleMoveStatus}
+                            onDelete={handleDeleteBook}
+                            onRate={handleRateBook}
+                            onSummarize={handleSummarizeBook}
+                            summary={summaries[book._id || book.id]}
+                            summarizing={loadingSummaryId === (book._id || book.id)}
+                            sourceLabel={book._memberId ? 'From Library' : 'My Shelf'}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
@@ -201,15 +296,26 @@ export default function UserDashboard() {
                     No finished books yet
                   </div>
                 ) : (
-                  finishedBooks.map((book) => (
-                    <BookCard
-                      key={book._id || book.id}
-                      book={book}
-                      adminMode={false}
-                      onMove={handleMoveStatus}
-                      onDelete={handleDeleteBook}
-                      onRate={handleRateBook}
-                    />
+                  Object.entries(finishedBooksByGenre).map(([genre, books]) => (
+                    <div key={genre} className="space-y-3">
+                      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{genre}</h3>
+                      <div className="space-y-4">
+                        {books.map((book) => (
+                          <BookCard
+                            key={book._id || book.id}
+                            book={book}
+                            adminMode={false}
+                            onMove={handleMoveStatus}
+                            onDelete={handleDeleteBook}
+                            onRate={handleRateBook}
+                            onSummarize={handleSummarizeBook}
+                            summary={summaries[book._id || book.id]}
+                            summarizing={loadingSummaryId === (book._id || book.id)}
+                            sourceLabel={book._memberId ? 'From Library' : 'My Shelf'}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
@@ -218,13 +324,8 @@ export default function UserDashboard() {
         )}
       </div>
 
-      {/* Feature 2: AddBookModal */}
-      {isModalOpen && (
-        <AddBookModal
-          onClose={() => setIsModalOpen(false)}
-          onAdd={handleAddBook}
-        />
-      )}
-    </AdminLayout>
+    </PublicLayout>
   );
 }
+
+export default UserDashboard;

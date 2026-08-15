@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import PublicLayout from '../layouts/PublicLayout';
+import AuthLayout from '../layouts/AuthLayout';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-function Login() {
+const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -30,20 +30,25 @@ function Login() {
         return;
       } catch (err) {
         console.error('Error handling Google Auth parameters:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
     }
 
     const cachedToken = localStorage.getItem('token');
-    if (cachedToken) {
+    const cachedUserString = localStorage.getItem('user');
+    if (cachedToken && cachedUserString) {
       try {
-        const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const cachedUser = JSON.parse(cachedUserString);
         if (cachedUser.role === 'admin') {
           navigate('/dashboard');
         } else {
           navigate('/user/dashboard');
         }
-      } catch {
-        navigate('/user/dashboard');
+      } catch (err) {
+        console.error('Stored user data is corrupted:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
     }
   }, [navigate]);
@@ -84,7 +89,7 @@ function Login() {
   };
 
   return (
-    <PublicLayout>
+    <AuthLayout>
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-2xl shadow-blue-100 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
         <div className="mb-6 text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Welcome back</p>
@@ -157,8 +162,14 @@ function Login() {
               d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.61l3.99 3.15c.95-2.85 3.6-4.96 6.72-4.96z"
             />
           </svg>
-          Continue with Google Auth
+          Continue with Google Account
         </a>
+
+        <div className="mt-4 text-center text-sm text-slate-600 dark:text-slate-300">
+          <Link to="/forgot-password" className="font-semibold text-blue-600 hover:underline">
+            Forgot password?
+          </Link>
+        </div>
 
         <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
           Don&apos;t have an account?{' '}
@@ -167,7 +178,7 @@ function Login() {
           </Link>
         </p>
       </div>
-    </PublicLayout>
+    </AuthLayout>
   );
 }
 

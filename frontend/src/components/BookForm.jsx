@@ -1,5 +1,5 @@
 
-function BookForm() {
+const BookForm = () => {
 
    return (
    <form className="flex flex-col justify-center max-w-lg mx-auto px-4 space-y-6 mt-6">
@@ -7,7 +7,7 @@ function BookForm() {
     <div>
         <label
             htmlFor="book-title"
-            className="mb-2 text-slate-900 font-medium text-lg inline-block"
+            className="mb-2 text-slate-900 dark:text-slate-100 font-medium text-lg inline-block"
         >
             Book Title
         </label>
@@ -15,14 +15,14 @@ function BookForm() {
             type="text"
             id="book-title"
             placeholder="Enter Book Title"
-            className="px-3.5 py-3 text-base text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
+            className="px-3.5 py-3 text-base text-slate-900 dark:text-slate-100 dark:bg-slate-800 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
         />
     </div>
 
     <div>
         <label
             htmlFor="author"
-            className="mb-2 text-slate-900 font-medium text-lg inline-block"
+            className="mb-2 text-slate-900 dark:text-slate-100 font-medium text-lg inline-block"
         >
             Author
         </label>
@@ -30,20 +30,20 @@ function BookForm() {
             type="text"
             id="author"
             placeholder="Enter Author Name"
-            className="px-3.5 py-3 text-base text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
+            className="px-3.5 py-3 text-base text-slate-900 dark:text-slate-100 dark:bg-slate-800 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
         />
     </div>
 
     <div>
         <label
             htmlFor="status"
-            className="mb-2 text-slate-900 font-medium text-lg inline-block"
+            className="mb-2 text-slate-900 dark:text-slate-100 font-medium text-lg inline-block"
         >
             Reading Status
         </label>
         <select
             id="status"
-            className="px-3.5 py-3 text-base text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
+            className="px-3.5 py-3 text-base text-slate-900 dark:text-slate-100 dark:bg-slate-800 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
         >
             <option>Want to Read</option>
             <option>Reading</option>
@@ -54,7 +54,7 @@ function BookForm() {
     <div>
         <label
             htmlFor="cover"
-            className="mb-2 text-slate-900 font-medium text-lg inline-block"
+            className="mb-2 text-slate-900 dark:text-slate-100 font-medium text-lg inline-block"
         >
             Book Cover URL
         </label>
@@ -62,20 +62,20 @@ function BookForm() {
             type="text"
             id="cover"
             placeholder="Enter Cover Image URL"
-            className="px-3.5 py-3 text-base text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
+            className="px-3.5 py-3 text-base text-slate-900 dark:text-slate-100 dark:bg-slate-800 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
         />
     </div>
 
     <div>
         <label
             htmlFor="rating"
-            className="mb-2 text-slate-900 font-medium text-lg inline-block"
+            className="mb-2 text-slate-900 dark:text-slate-100 font-medium text-lg inline-block"
         >
             Rating (Finished Books)
         </label>
         <select
             id="rating"
-            className="px-3.5 py-3 text-base text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
+            className="px-3.5 py-3 text-base text-slate-900 dark:text-slate-100 dark:bg-slate-800 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600"
         >
             <option value="0">0 Stars</option>
             <option value="1">1 Star</option>

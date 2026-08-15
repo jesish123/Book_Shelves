@@ -25,6 +25,16 @@ const UserSchema = new mongoose.Schema(
             type: String,
             required: false
         },
+        resetCode: {
+            type: String,
+            required: false,
+            default: null
+        },
+        resetCodeExpiry: {
+            type: Date,
+            required: false,
+            default: null
+        },
         googleId: {
             type: String,
             required: false,
@@ -34,6 +44,11 @@ const UserSchema = new mongoose.Schema(
             type: String,
             enum: ['user', 'admin'],
             default: 'user'
+        },
+        status: {
+            type: String,
+            enum: ['online', 'offline'],
+            default: 'offline'
         }
     },
     {
