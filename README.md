@@ -207,11 +207,6 @@ bcrypt.hash('your_admin_password', 10, (err, hash) => {
 }
 ```
 
-#### Default Admin Account
-
-**Email**: `admin@admin.com`  
-**Password**: `admin123`
-
 **Use this account to:**
 - Access the Admin Dashboard
 - Manage all users and books
